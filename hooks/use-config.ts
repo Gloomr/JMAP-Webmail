@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { DEFAULT_OAUTH_SCOPES } from '@/lib/oauth/tokens';
 
 interface ConfigData {
   appName: string;
@@ -8,6 +9,7 @@ interface ConfigData {
   oauthEnabled: boolean;
   oauthClientId: string;
   oauthIssuerUrl: string;
+  oauthScopes: string;
   oauthOnly: boolean;
   rememberMeEnabled: boolean;
 }
@@ -65,6 +67,7 @@ export function useConfig(): AppConfig {
     oauthEnabled: configCache?.oauthEnabled || false,
     oauthClientId: configCache?.oauthClientId || '',
     oauthIssuerUrl: configCache?.oauthIssuerUrl || '',
+    oauthScopes: configCache?.oauthScopes || DEFAULT_OAUTH_SCOPES,
     oauthOnly: configCache?.oauthOnly || false,
     rememberMeEnabled: configCache?.rememberMeEnabled || false,
     isLoading: !configCache,
@@ -80,6 +83,7 @@ export function useConfig(): AppConfig {
         oauthEnabled: configCache.oauthEnabled,
         oauthClientId: configCache.oauthClientId,
         oauthIssuerUrl: configCache.oauthIssuerUrl,
+        oauthScopes: configCache.oauthScopes,
         oauthOnly: configCache.oauthOnly,
         rememberMeEnabled: configCache.rememberMeEnabled,
         isLoading: false,
@@ -96,6 +100,7 @@ export function useConfig(): AppConfig {
           oauthEnabled: data.oauthEnabled,
           oauthClientId: data.oauthClientId,
           oauthIssuerUrl: data.oauthIssuerUrl,
+          oauthScopes: data.oauthScopes,
           oauthOnly: data.oauthOnly,
           rememberMeEnabled: data.rememberMeEnabled,
           isLoading: false,

@@ -199,7 +199,10 @@ OAUTH_ENABLED=true
 OAUTH_CLIENT_ID=webmail
 OAUTH_CLIENT_SECRET=              # optional, for confidential clients
 OAUTH_ISSUER_URL=                 # optional, for external IdPs (Keycloak, Authentik)
+OAUTH_SCOPES=                     # optional, default: openid email profile offline_access
 ```
+
+`offline_access` asks the IdP for a refresh token so sessions survive a page reload. Override `OAUTH_SCOPES` only if your provider rejects that scope (Google does) or needs extra ones.
 
 Endpoints are auto-discovered via `.well-known/oauth-authorization-server` or `.well-known/openid-configuration`. If your JMAP server delegates auth to an external IdP, set `OAUTH_ISSUER_URL` to the IdP's base URL (e.g., `https://keycloak.example.com/realms/mail`).
 

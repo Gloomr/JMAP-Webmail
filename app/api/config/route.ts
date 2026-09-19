@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { resolveOAuthScopes } from '@/lib/oauth/tokens';
 
 /**
  * Runtime configuration endpoint
@@ -21,6 +22,7 @@ export async function GET() {
     oauthEnabled: process.env.OAUTH_ENABLED === 'true' || process.env.OAUTH_ONLY === 'true',
     oauthClientId: process.env.OAUTH_CLIENT_ID || '',
     oauthIssuerUrl: process.env.OAUTH_ISSUER_URL || '',
+    oauthScopes: resolveOAuthScopes(process.env.OAUTH_SCOPES),
     oauthOnly: process.env.OAUTH_ONLY === 'true',
     rememberMeEnabled: !!process.env.SESSION_SECRET,
   });

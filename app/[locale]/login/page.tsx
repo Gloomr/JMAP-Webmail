@@ -12,14 +12,13 @@ import { cn } from "@/lib/utils";
 import { Mail, AlertCircle, Loader2, X, Info, Eye, EyeOff, LogIn } from "lucide-react";
 import { discoverOAuth, type OAuthMetadata } from "@/lib/oauth/discovery";
 import { generateCodeVerifier, generateCodeChallenge, generateState } from "@/lib/oauth/pkce";
-import { OAUTH_SCOPES } from "@/lib/oauth/tokens";
 
 export default function LoginPage() {
   const router = useRouter();
   const t = useTranslations("login");
   const params = useParams();
   const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
-  const { appName, jmapServerUrl: serverUrl, oauthEnabled, oauthClientId, oauthIssuerUrl, oauthOnly, rememberMeEnabled, isLoading: configLoading, error: configError } = useConfig();
+  const { appName, jmapServerUrl: serverUrl, oauthEnabled, oauthClientId, oauthIssuerUrl, oauthScopes, oauthOnly, rememberMeEnabled, isLoading: configLoading, error: configError } = useConfig();
 
   const [formData, setFormData] = useState({
     username: "",
@@ -283,7 +282,7 @@ export default function LoginPage() {
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("client_id", oauthClientId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
-    authUrl.searchParams.set("scope", OAUTH_SCOPES);
+    authUrl.searchParams.set("scope", oauthScopes);
     authUrl.searchParams.set("state", state);
     authUrl.searchParams.set("code_challenge", challenge);
     authUrl.searchParams.set("code_challenge_method", "S256");

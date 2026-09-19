@@ -289,6 +289,10 @@ This document tracks the development status and planned features for JMAP Webmai
 - [x] "Stop processing" honoured after Discard/Reject (#67, thanks @travier)
 - [x] dompurify 3.4.11 and Next.js 16.2.10 security updates
 
+### Release 1.7.2 (2026-09-19)
+- [x] SSO sessions survive reloads: `offline_access` requested so external IdPs issue a refresh token (#104, thanks @rriaz6601)
+- [x] `OAUTH_SCOPES` override for providers that reject or extend the default scope list
+
 ### Release 1.7.1 (2026-08-28)
 - [x] OIDC logout accepted by Keycloak: end-session redirect carries id_token_hint and client_id (#102)
 - [x] Favicon unread badge shows on Firefox and Chrome/Linux (#66, thanks @jabiinfante)

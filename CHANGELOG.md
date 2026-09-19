@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.2 (2026-09-19)
+
+- **SSO sessions survive a page reload.** The login request now asks
+  for the `offline_access` scope, so external identity providers
+  (Authentik, Keycloak, Entra) return a refresh token. Before this,
+  `OAUTH_ONLY` deployments were sent back to the login page on every
+  reload and every token refresh. Stalwart's built-in provider was not
+  affected. Thanks @rriaz6601 for the diagnosis. (#104)
+- **New `OAUTH_SCOPES` variable** overrides the requested scope list
+  for providers that reject `offline_access` or need extra scopes.
+
 ## 1.7.1 (2026-08-28)
 
 - **OIDC logout works with Keycloak again.** The end-session redirect
