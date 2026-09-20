@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.3 (2026-09-20)
+
+- **Dependency maintenance.** Next.js 16.3.5 (adds the CSP nonce to
+  loading and template script tags, which the enforced policy needs),
+  DOMPurify 3.4.15 (XML clobbering hardening), React 19.3, next-intl
+  4.14.5 and tooling patch releases. No known vulnerabilities remain.
+
 ## 1.7.2 (2026-09-19)
 
 - **SSO sessions survive a page reload.** The login request now asks

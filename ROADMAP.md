@@ -289,6 +289,9 @@ This document tracks the development status and planned features for JMAP Webmai
 - [x] "Stop processing" honoured after Discard/Reject (#67, thanks @travier)
 - [x] dompurify 3.4.11 and Next.js 16.2.10 security updates
 
+### Release 1.7.3 (2026-09-20)
+- [x] Dependency maintenance: Next.js 16.3.5, DOMPurify 3.4.15, React 19.3, next-intl 4.14.5, tooling patches
+
 ### Release 1.7.2 (2026-09-19)
 - [x] SSO sessions survive reloads: `offline_access` requested so external IdPs issue a refresh token (#104, thanks @rriaz6601)
 - [x] `OAUTH_SCOPES` override for providers that reject or extend the default scope list
