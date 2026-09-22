@@ -1,0 +1,95 @@
+# Publishes this fork's `gloomr` branch as a container image under the
+# Gloomr organisation.
+#
+# It exists beside the upstream `docker-publish.yml` rather than
+# replacing it. That file is left byte-identical to upstream so it can
+# never conflict when this branch is rebased onto a new release; it is
+# switched off in this repository's Actions settings instead, because it
+# logs in to a Docker Hub account this organisation does not have and
+# pushes to a namespace it does not own.
+#
+# amd64 only. The machine this runs on is a Hetzner cx33, which is
+# amd64; a developer on an arm64 laptop builds the image from the
+# checkout instead, natively and in a fraction of the time. Emulating
+# arm64 here would add roughly three quarters of an hour to every run
+# for an artifact nothing pulls.
+#
+# No `latest`. The tag that matters is `sha-<short>`, because the
+# monorepo pins this repository to one commit and the deployed image has
+# to be that commit rather than whatever moved last.
+
+name: Publish to GHCR
+
+on:
+  push:
+    branches: [gloomr]
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "app/**"
+      - "components/**"
+      - "contexts/**"
+      - "hooks/**"
+      - "lib/**"
+      - "stores/**"
+      - "locales/**"
+      - "public/**"
+      - "proxy.ts"
+      - "next.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/gloomr-ghcr.yml"
+    tags: ["gloomr-v*"]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The image name is spelled out rather than taken from
+      # `github.repository`: that value carries this repository's mixed
+      # case, and a registry reference has to be lowercase.
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/gloomr/jmap-webmail
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=gloomr,enable=${{ github.ref == 'refs/heads/gloomr' }}
+            type=match,pattern=gloomr-v(.*),group=1
+          labels: |
+            org.opencontainers.image.title=JMAP Webmail (Gloomr)
+            org.opencontainers.image.source=https://github.com/Gloomr/JMAP-Webmail
+            org.opencontainers.image.url=https://github.com/Gloomr/JMAP-Webmail
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.authors=Matthieu MALVACHE
+            org.opencontainers.image.base.name=https://github.com/root-fr/jmap-webmail
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
