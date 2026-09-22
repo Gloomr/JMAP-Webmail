@@ -37,6 +37,8 @@ interface ThreadConversationViewProps {
   emails: Email[];
   isLoading?: boolean;
   onBack: () => void;
+  /** The back arrow belongs to a screen that shows one pane at a time. */
+  showBack?: boolean;
   onReply?: (email: Email) => void;
   onReplyAll?: (email: Email) => void;
   onForward?: (email: Email) => void;
@@ -72,6 +74,7 @@ export function ThreadConversationView({
   emails,
   isLoading = false,
   onBack,
+  showBack = true,
   onReply,
   onReplyAll,
   onForward,
@@ -141,12 +144,14 @@ export function ThreadConversationView({
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sticky top-0 z-10">
-        <button
-          onClick={onBack}
-          className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        {showBack && (
+          <button
+            onClick={onBack}
+            className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-foreground truncate">
             {thread.latestEmail.subject || t("email_viewer.no_subject")}

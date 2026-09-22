@@ -20,7 +20,7 @@ import { useContactStore } from "@/stores/contact-store";
 import { useDeviceDetection } from "@/hooks/use-media-query";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { debug } from "@/lib/debug";
-import { findEmailRow, isSameRow, owningAccountId } from "@/lib/thread-utils";
+import { findEmailRow, isSameRow, owningAccountId, groupEmailsByThread } from "@/lib/thread-utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { cn } from "@/lib/utils";
 import {
@@ -697,6 +697,7 @@ export default function Home() {
       const fullEmail = await client.getEmail(email.id, accountId);
       if (fullEmail) {
         selectEmail(fullEmail);
+        void loadConversationForEmail(fullEmail);
         if (isTablet) setTabletListVisible(false);
       }
     } catch {
@@ -715,6 +716,43 @@ export default function Home() {
     }
     selectEmail(null);
     setActiveView("list");
+  };
+
+  // A mailbox listing only ever holds that mailbox's messages, so the
+  // list cannot know how long a conversation is: a reply lives in Sent,
+  // and the original in the Inbox sees none of it. Thread/get spans
+  // every mailbox the conversation touches, so opening a message is
+  // what reveals the rest of it.
+  //
+  // One message is not a conversation, and rendering it as one costs a
+  // header and gains nothing — the viewer stays for that case.
+  const loadConversationForEmail = async (email: Email) => {
+    if (!client) return;
+    try {
+      const emails = await client.getThreadEmails(email.threadId, email.accountId);
+      if (emails.length > 1) {
+        const [group] = groupEmailsByThread(emails);
+        setConversationThread(group ?? null);
+        setConversationEmails(emails);
+        return;
+      }
+    } catch {
+      // A conversation we could not load is shown as the one message we have.
+    }
+    setConversationThread(null);
+    setConversationEmails([]);
+  };
+
+  // On a screen that shows one pane at a time, leaving the conversation
+  // means leaving the viewer. Side by side it means collapsing back to
+  // the single message, which is still selected.
+  const handleConversationBack = () => {
+    if (isMobile) {
+      handleMobileBack();
+      return;
+    }
+    setConversationThread(null);
+    setConversationEmails([]);
   };
 
   // Handle opening conversation view on mobile
@@ -912,12 +950,13 @@ export default function Home() {
             )}
           >
             {/* Mobile Conversation View - shown when thread is selected on mobile */}
-            {isMobile && conversationThread ? (
+            {conversationThread && (isMobile || conversationEmails.length > 1) ? (
               <ThreadConversationView
                 thread={conversationThread}
                 emails={conversationEmails}
                 isLoading={isLoadingConversation}
-                onBack={handleMobileBack}
+                showBack={isMobile}
+                onBack={handleConversationBack}
                 onReply={handleConversationReply}
                 onReplyAll={handleConversationReplyAll}
                 onForward={handleConversationForward}
