@@ -140,6 +140,8 @@ export interface ThreadGroup {
   participantNames: string[];// Unique participant names
   hasUnread: boolean;        // Any unread emails in thread
   hasStarred: boolean;       // Any starred emails in thread
+  hasAnswered: boolean;      // Any email in thread was replied to
+  hasForwarded: boolean;     // Any email in thread was forwarded on
   hasAttachment: boolean;    // Any email has attachment
   emailCount: number;        // Total emails in thread
 }

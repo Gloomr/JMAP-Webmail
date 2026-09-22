@@ -388,9 +388,7 @@
       "add_to_contacts": "Zu Kontakten hinzufügen",
       "view_all_emails": "Alle E-Mails dieses Absenders anzeigen",
       "no_contact": "Nicht in Ihren Kontakten"
-    },
-    "answered": "Beantwortet",
-    "forwarded": "Weitergeleitet"
+    }
   },
   "email_composer": {
     "new_message": "Neue Nachricht",
@@ -1078,7 +1076,9 @@
     "star": "Unterhaltung mit Stern markieren",
     "unstar": "Stern von Unterhaltung entfernen",
     "messages_tooltip": "{count, plural, one {# Nachricht in dieser Unterhaltung} other {# Nachrichten in dieser Unterhaltung}}",
-    "toggle_thread": "Unterhaltung ein-/ausklappen"
+    "toggle_thread": "Unterhaltung ein-/ausklappen",
+    "answered": "Beantwortet",
+    "forwarded": "Weitergeleitet"
   },
   "identities": {
     "modal_title": "Sendeidentitäten verwalten",

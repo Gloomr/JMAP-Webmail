@@ -98,6 +98,8 @@ export function groupEmailsByThread(emails: Email[]): ThreadGroup[] {
     // Check for unread, starred, and attachments
     const hasUnread = sortedEmails.some(e => !e.keywords?.$seen);
     const hasStarred = sortedEmails.some(e => e.keywords?.$flagged);
+    const hasAnswered = sortedEmails.some(e => e.keywords?.["$answered"]);
+    const hasForwarded = sortedEmails.some(e => e.keywords?.["$forwarded"]);
     const hasAttachment = sortedEmails.some(e => e.hasAttachment);
 
     threadGroups.push({
@@ -107,6 +109,8 @@ export function groupEmailsByThread(emails: Email[]): ThreadGroup[] {
       participantNames,
       hasUnread,
       hasStarred,
+      hasAnswered,
+      hasForwarded,
       hasAttachment,
       emailCount: sortedEmails.length,
     });
@@ -183,6 +187,8 @@ export function mergeThreadEmails(
   const participantNames = getThreadParticipants(mergedEmails);
   const hasUnread = mergedEmails.some(e => !e.keywords?.$seen);
   const hasStarred = mergedEmails.some(e => e.keywords?.$flagged);
+  const hasAnswered = mergedEmails.some(e => e.keywords?.["$answered"]);
+  const hasForwarded = mergedEmails.some(e => e.keywords?.["$forwarded"]);
   const hasAttachment = mergedEmails.some(e => e.hasAttachment);
 
   return {
@@ -192,6 +198,8 @@ export function mergeThreadEmails(
     participantNames,
     hasUnread,
     hasStarred,
+    hasAnswered,
+    hasForwarded,
     hasAttachment,
     emailCount: mergedEmails.length,
   };

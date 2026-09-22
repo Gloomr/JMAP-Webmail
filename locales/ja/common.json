@@ -388,9 +388,7 @@
       "add_to_contacts": "連絡先に追加",
       "view_all_emails": "この送信者のすべてのメールを表示",
       "no_contact": "連絡先に登録されていません"
-    },
-    "answered": "返信済み",
-    "forwarded": "転送済み"
+    }
   },
   "email_composer": {
     "new_message": "新規メッセージ",
@@ -1078,7 +1076,9 @@
     "star": "会話にスターを付ける",
     "unstar": "会話のスターを外す",
     "messages_tooltip": "{count, plural, other {この会話の#件のメッセージ}}",
-    "toggle_thread": "スレッドの展開/折りたたみ"
+    "toggle_thread": "スレッドの展開/折りたたみ",
+    "answered": "返信済み",
+    "forwarded": "転送済み"
   },
   "identities": {
     "modal_title": "送信者情報を管理",

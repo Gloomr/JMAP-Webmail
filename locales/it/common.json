@@ -388,9 +388,7 @@
       "add_to_contacts": "Aggiungi ai contatti",
       "view_all_emails": "Visualizza tutte le email di questo mittente",
       "no_contact": "Non presente nei tuoi contatti"
-    },
-    "answered": "Risposto",
-    "forwarded": "Inoltrato"
+    }
   },
   "email_composer": {
     "new_message": "Nuovo messaggio",
@@ -1078,7 +1076,9 @@
     "star": "Aggiungi stella alla conversazione",
     "unstar": "Rimuovi stella dalla conversazione",
     "messages_tooltip": "{count, plural, one {# messaggio in questa conversazione} other {# messaggi in questa conversazione}}",
-    "toggle_thread": "Espandi/comprimi discussione"
+    "toggle_thread": "Espandi/comprimi discussione",
+    "answered": "Risposto",
+    "forwarded": "Inoltrato"
   },
   "identities": {
     "modal_title": "Gestisci identità di invio",

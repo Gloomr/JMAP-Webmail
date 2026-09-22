@@ -388,9 +388,7 @@
       "add_to_contacts": "Dodaj do kontaktów",
       "view_all_emails": "Wyświetl wszystkie wiadomości od tego nadawcy",
       "no_contact": "Nie ma w Twoich kontaktach"
-    },
-    "answered": "Odpowiedziano",
-    "forwarded": "Przekazano"
+    }
   },
   "email_composer": {
     "new_message": "Nowa wiadomość",
@@ -1082,7 +1080,9 @@
     "delete": "Usuń konwersację",
     "star": "Oznacz konwersację gwiazdką",
     "unstar": "Usuń gwiazdkę z konwersacji",
-    "toggle_thread": "Przełącz wątek"
+    "toggle_thread": "Przełącz wątek",
+    "answered": "Odpowiedziano",
+    "forwarded": "Przekazano"
   },
   "identities": {
     "modal_title": "Zarządzanie tożsamościami wysyłającymi",

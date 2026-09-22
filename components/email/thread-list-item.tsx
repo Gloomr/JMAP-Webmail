@@ -5,7 +5,7 @@ import { formatDate, getAccountDisplayName } from "@/lib/utils";
 import { Email, ThreadGroup } from "@/lib/jmap/types";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
-import { Paperclip, Star, Circle, ChevronRight, ChevronDown, Loader2, MessageSquare, CheckSquare, Square } from "lucide-react";
+import { Paperclip, Star, Circle, ChevronRight, ChevronDown, Loader2, MessageSquare, CheckSquare, Square, Reply, Forward } from "lucide-react";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useEmailStore } from "@/stores/email-store";
@@ -64,8 +64,11 @@ interface SingleEmailItemProps {
 
 const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
   function SingleEmailItem({ email, selected, onClick, onContextMenu, showPreview, colorTag, isChecked, onCheckboxClick, folderBadgeName, accountChipName }, ref) {
+    const t = useTranslations('threads');
     const isUnread = !email.keywords?.$seen;
     const isStarred = email.keywords?.$flagged;
+    const isAnswered = email.keywords?.["$answered"];
+    const isForwarded = email.keywords?.["$forwarded"];
     const sender = email.from?.[0];
 
     const handleContextMenu = (e: React.MouseEvent) => {
@@ -137,6 +140,12 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
                   {sender?.name || sender?.email || "Unknown"}
                 </span>
                 <div className="flex items-center gap-1.5">
+                  {isAnswered && (
+                    <Reply className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-label={t('answered')} />
+                  )}
+                  {isForwarded && !isAnswered && (
+                    <Forward className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" aria-label={t('forwarded')} />
+                  )}
                   {isStarred && (
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   )}
@@ -202,7 +211,7 @@ export const ThreadListItem = React.forwardRef<HTMLDivElement, ThreadListItemPro
     const showPreview = useSettingsStore((state) => state.showPreview);
     const isMobile = useUIStore((state) => state.isMobile);
     const { currentQuery, mailboxes } = useEmailStore();
-    const { latestEmail, participantNames, hasUnread, hasStarred, hasAttachment, emailCount } = thread;
+    const { latestEmail, participantNames, hasUnread, hasStarred, hasAnswered, hasForwarded, hasAttachment, emailCount } = thread;
     // Only surface the folder badge when browsing across all folders, where a
     // row's mailbox isn't implied by the current view.
     const folderBadgeName: string | null =
@@ -368,6 +377,12 @@ export const ThreadListItem = React.forwardRef<HTMLDivElement, ThreadListItemPro
                     {emailCount}
                   </span>
                   <div className="flex items-center gap-1.5">
+                    {hasAnswered && (
+                      <Reply className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-label={t('answered')} />
+                    )}
+                    {hasForwarded && !hasAnswered && (
+                      <Forward className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" aria-label={t('forwarded')} />
+                    )}
                     {hasStarred && (
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                     )}

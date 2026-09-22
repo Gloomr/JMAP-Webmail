@@ -388,9 +388,7 @@
       "add_to_contacts": "Ajouter aux contacts",
       "view_all_emails": "Voir tous les e-mails de cet expéditeur",
       "no_contact": "Pas dans vos contacts"
-    },
-    "answered": "Répondu",
-    "forwarded": "Transféré"
+    }
   },
   "email_composer": {
     "new_message": "Nouveau message",
@@ -1078,7 +1076,9 @@
     "star": "Marquer la conversation comme favorite",
     "unstar": "Retirer des favoris",
     "messages_tooltip": "{count, plural, one {# message dans cette conversation} other {# messages dans cette conversation}}",
-    "toggle_thread": "Déplier/replier la discussion"
+    "toggle_thread": "Déplier/replier la discussion",
+    "answered": "Répondu",
+    "forwarded": "Transféré"
   },
   "identities": {
     "modal_title": "Gérer les identités d'envoi",

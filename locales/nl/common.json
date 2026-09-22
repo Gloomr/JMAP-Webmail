@@ -388,9 +388,7 @@
       "add_to_contacts": "Toevoegen aan contacten",
       "view_all_emails": "Alle e-mails van deze afzender bekijken",
       "no_contact": "Niet in uw contacten"
-    },
-    "answered": "Beantwoord",
-    "forwarded": "Doorgestuurd"
+    }
   },
   "email_composer": {
     "new_message": "Nieuw bericht",
@@ -1078,7 +1076,9 @@
     "star": "Ster toevoegen aan gesprek",
     "unstar": "Ster verwijderen van gesprek",
     "messages_tooltip": "{count, plural, one {# bericht in dit gesprek} other {# berichten in dit gesprek}}",
-    "toggle_thread": "Gesprek in-/uitvouwen"
+    "toggle_thread": "Gesprek in-/uitvouwen",
+    "answered": "Beantwoord",
+    "forwarded": "Doorgestuurd"
   },
   "identities": {
     "modal_title": "Verzendidentiteiten beheren",

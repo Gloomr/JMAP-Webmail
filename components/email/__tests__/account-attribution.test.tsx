@@ -76,6 +76,8 @@ const threadOf = (e: Email): ThreadGroup => ({
   participantNames: ['Alice'],
   hasUnread: false,
   hasStarred: false,
+  hasAnswered: false,
+  hasForwarded: false,
   hasAttachment: false,
   emailCount: 1,
 });

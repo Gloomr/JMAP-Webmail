@@ -388,9 +388,7 @@
       "add_to_contacts": "Add to contacts",
       "view_all_emails": "View all emails from this sender",
       "no_contact": "Not in your contacts"
-    },
-    "answered": "Answered",
-    "forwarded": "Forwarded"
+    }
   },
   "email_composer": {
     "new_message": "New Message",
@@ -1082,7 +1080,9 @@
     "delete": "Delete conversation",
     "star": "Star conversation",
     "unstar": "Unstar conversation",
-    "toggle_thread": "Toggle thread"
+    "toggle_thread": "Toggle thread",
+    "answered": "Answered",
+    "forwarded": "Forwarded"
   },
   "identities": {
     "modal_title": "Manage Sending Identities",

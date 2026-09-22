@@ -128,6 +128,8 @@ describe('sortThreadGroups', () => {
         participantNames: ['A'],
         hasUnread: false,
         hasStarred: false,
+        hasAnswered: false,
+        hasForwarded: false,
         hasAttachment: false,
         emailCount: 1,
       },
@@ -138,6 +140,8 @@ describe('sortThreadGroups', () => {
         participantNames: ['B'],
         hasUnread: false,
         hasStarred: false,
+        hasAnswered: false,
+        hasForwarded: false,
         hasAttachment: false,
         emailCount: 1,
       },
@@ -175,6 +179,30 @@ describe('getThreadParticipants', () => {
   });
 });
 
+describe('thread flags for handled messages', () => {
+  it('marks a thread answered when any message in it was replied to', () => {
+    const [group] = groupEmailsByThread([
+      makeEmail({ id: 'e1', threadId: 't', keywords: { $seen: true } }),
+      makeEmail({ id: 'e2', threadId: 't', keywords: { $seen: true, $answered: true } }),
+    ]);
+    expect(group.hasAnswered).toBe(true);
+    expect(group.hasForwarded).toBe(false);
+  });
+
+  it('leaves a thread nobody acted on unmarked', () => {
+    const [group] = groupEmailsByThread([makeEmail({ id: 'e1', threadId: 't' })]);
+    expect(group.hasAnswered).toBe(false);
+    expect(group.hasForwarded).toBe(false);
+  });
+
+  it('marks a forwarded thread', () => {
+    const [group] = groupEmailsByThread([
+      makeEmail({ id: 'e1', threadId: 't', keywords: { $forwarded: true } }),
+    ]);
+    expect(group.hasForwarded).toBe(true);
+  });
+});
+
 describe('mergeThreadEmails', () => {
   it('merges new emails without duplicating existing ones', () => {
     const existing: ThreadGroup = {
@@ -187,6 +215,8 @@ describe('mergeThreadEmails', () => {
       participantNames: ['Alice'],
       hasUnread: false,
       hasStarred: false,
+      hasAnswered: false,
+      hasForwarded: false,
       hasAttachment: false,
       emailCount: 2,
     };
@@ -207,6 +237,8 @@ describe('mergeThreadEmails', () => {
       participantNames: ['Alice'],
       hasUnread: false,
       hasStarred: false,
+      hasAnswered: false,
+      hasForwarded: false,
       hasAttachment: false,
       emailCount: 1,
     };
