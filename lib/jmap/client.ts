@@ -3,6 +3,7 @@ import type { SieveScript, SieveCapabilities } from "./sieve-types";
 import { retryWithBackoff } from './retry';
 import { buildQueryRequest, type EmailQuery, type EmailPage, type EmailScope } from './search-utils';
 import type { UnifiedTarget, AccountPage } from './unified-query';
+import { creationId } from '../creation-id';
 
 // JMAP protocol types - these are intentionally flexible due to server variations
 interface JMAPSession {
@@ -1569,7 +1570,7 @@ export class JMAPClient {
     // send-as copies it into the target account (body, headers and
     // attachments intact) and submits the copy.
     const useExistingDraft = Boolean(draftId) && !sendAsOther;
-    const emailId = useExistingDraft ? draftId! : `draft-${Date.now()}`;
+    const emailId = useExistingDraft ? draftId! : creationId('draft');
 
     const onSuccessUpdateEmail = {
       "#1": {
@@ -1610,13 +1611,27 @@ export class JMAPClient {
       }
       const notCopied = copyResult?.[1]?.notCreated;
       if (notCopied) {
-        const first = Object.values(notCopied)[0] as { description?: string; type?: string };
-        throw new Error(first?.description || first?.type || 'Failed to copy draft');
+        const first = Object.values(notCopied)[0] as {
+          description?: string; type?: string; existingId?: string;
+        };
+        // The same draft copied a second time is not a failure. It is
+        // what a resend after a refused submission looks like: the copy
+        // is already in the target account, and it is the one to submit.
+        if (first?.type === 'alreadyExists' && first.existingId) {
+          copiedEmailId = first.existingId;
+        } else {
+          throw new Error(first?.description || first?.type || 'Failed to copy draft');
+        }
       }
-      const copied = Object.values(copyResult?.[1]?.created ?? {})[0] as { id?: string } | undefined;
-      copiedEmailId = copied?.id;
       if (!copiedEmailId) {
-        throw new Error('Failed to copy draft');
+        const copied = Object.values(copyResult?.[1]?.created ?? {})[0] as { id?: string } | undefined;
+        copiedEmailId = copied?.id;
+      }
+      if (!copiedEmailId) {
+        // Neither created nor refused: the server dropped the entry and
+        // said nothing. A creation id it will not accept does this, and
+        // `creationId` exists to keep us out of that set.
+        throw new Error('The server neither copied the draft nor reported why');
       }
     }
 
