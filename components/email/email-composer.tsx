@@ -17,6 +17,7 @@ import { useTemplateStore } from "@/stores/template-store";
 import { useIdentityStore } from "@/stores/identity-store";
 import { SubAddressHelper } from "@/components/identity/sub-address-helper";
 import { generateSubAddress } from "@/lib/sub-addressing";
+import { identityKey, resolveIdentityKey as resolveIdentity } from "@/lib/identity-key";
 import { substitutePlaceholders } from "@/lib/template-utils";
 import { TemplatePicker } from "@/components/templates/template-picker";
 import { TemplateForm } from "@/components/templates/template-form";
@@ -144,18 +145,17 @@ export function EmailComposer({
     ([accountId, list]) => accountId !== primaryAccountId && list.length > 0
   );
 
-  const findIdentityById = (id: string | null) => {
-    if (!id) return primaryIdentity;
-    return identities.find(identity => identity.id === id)
-      ?? otherAccountIdentities.flatMap(([, list]) => list).find(identity => identity.id === id)
-      ?? primaryIdentity;
-  };
+  const identityLookup = { identities, identitiesByAccount, primaryAccountId, primaryIdentity };
+  const resolveIdentityKey = (key: string | null) => resolveIdentity(key, identityLookup);
 
-  const renderIdentityOption = (identity: Identity) => (
-    <option key={identity.id} value={identity.id}>
-      {identity.name ? `${identity.name} <${identity.email}>` : identity.email}
-    </option>
-  );
+  const renderIdentityOption = (accountId: string | null, identity: Identity) => {
+    const key = identityKey(accountId, identity.id);
+    return (
+      <option key={key} value={key}>
+        {identity.name ? `${identity.name} <${identity.email}>` : identity.email}
+      </option>
+    );
+  };
   const getAutocomplete = useContactStore((s) => s.getAutocomplete);
   const addTemplate = useTemplateStore((s) => s.addTemplate);
   const [autocompleteResults, setAutocompleteResults] = useState<Array<{ name: string; email: string }>>([]);
@@ -275,7 +275,7 @@ export function EmailComposer({
     if (!replyTo?.accountId || replyTo.accountId === primaryAccountId || selectedIdentityId) return;
     const accountIdentities = identitiesByAccount[replyTo.accountId];
     if (accountIdentities?.length) {
-      setSelectedIdentityId(accountIdentities[0].id);
+      setSelectedIdentityId(identityKey(replyTo.accountId, accountIdentities[0].id));
     }
   }, [mode, replyTo?.accountId, primaryAccountId, identitiesByAccount, selectedIdentityId]);
 
@@ -380,7 +380,7 @@ export function EmailComposer({
 
     setSaveStatus('saving');
 
-    const currentIdentity = findIdentityById(selectedIdentityId);
+    const { identity: currentIdentity } = resolveIdentityKey(selectedIdentityId);
 
     // Generate sub-addressed email if tag is set
     const fromEmail = currentIdentity?.email
@@ -498,23 +498,18 @@ export function EmailComposer({
       }
     }
 
-    const currentIdentity = findIdentityById(selectedIdentityId);
+    // Route through the account that owns the chosen identity in every
+    // mode - a group identityId submitted via the primary account is
+    // always rejected. Personal identities keep the primary route, for
+    // which the resolver yields null.
+    const { identity: currentIdentity, accountId: sendAsAccountId } =
+      resolveIdentityKey(selectedIdentityId);
 
     const fromEmail = currentIdentity?.email
       ? subAddressTag
         ? generateSubAddress(currentIdentity.email, subAddressTag)
         : currentIdentity.email
       : undefined;
-
-    // Route through the account that owns the chosen identity in every
-    // mode - a group identityId submitted via the primary account is
-    // always rejected. Personal identities keep the primary route.
-    const sendAsAccountId =
-      currentIdentity && !identities.some((i) => i.id === currentIdentity.id)
-        ? otherAccountIdentities.find(([, list]) =>
-            list.some((i) => i.id === currentIdentity.id)
-          )?.[0]
-        : undefined;
 
     const submit = (identity: Identity | null | undefined, from: string | undefined, accountId?: string) =>
       onSend?.({
@@ -542,7 +537,7 @@ export function EmailComposer({
     };
 
     try {
-      await submit(currentIdentity, fromEmail, sendAsAccountId);
+      await submit(currentIdentity, fromEmail, sendAsAccountId ?? undefined);
       clearComposer();
     } catch (err) {
       debug.error('Failed to send email:', err);
@@ -652,7 +647,7 @@ export function EmailComposer({
             <div className="flex-1 flex items-center gap-1">
               {(identities.length > 1 || otherAccountIdentities.length > 0) ? (
                 <select
-                  value={selectedIdentityId || primaryIdentity?.id || ''}
+                  value={selectedIdentityId || (primaryIdentity ? identityKey(null, primaryIdentity.id) : '')}
                   onChange={(e) => setSelectedIdentityId(e.target.value)}
                   aria-label={t('from')}
                   className="flex-1 bg-transparent text-sm text-foreground outline-none cursor-pointer hover:text-muted-foreground transition-colors"
@@ -660,16 +655,16 @@ export function EmailComposer({
                   {otherAccountIdentities.length > 0 ? (
                     <>
                       <optgroup label={t('identity_group_own')}>
-                        {identities.map(renderIdentityOption)}
+                        {identities.map((i) => renderIdentityOption(null, i))}
                       </optgroup>
                       {otherAccountIdentities.map(([accountId, list]) => (
                         <optgroup key={accountId} label={list[0].email}>
-                          {list.map(renderIdentityOption)}
+                          {list.map((i) => renderIdentityOption(accountId, i))}
                         </optgroup>
                       ))}
                     </>
                   ) : (
-                    identities.map(renderIdentityOption)
+                    identities.map((i) => renderIdentityOption(null, i))
                   )}
                 </select>
               ) : (
@@ -688,7 +683,7 @@ export function EmailComposer({
                 </span>
               )}
               <SubAddressHelper
-                baseEmail={findIdentityById(selectedIdentityId)?.email || ''}
+                baseEmail={resolveIdentityKey(selectedIdentityId).identity?.email || ''}
                 recipientEmails={to.split(',').map(e => e.trim()).filter(Boolean)}
                 onSelectTag={setSubAddressTag}
               />

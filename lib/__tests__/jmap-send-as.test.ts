@@ -21,10 +21,20 @@ const CREATE_AND_SUBMIT_OK = {
   ],
 };
 
-const COPY_AND_SUBMIT_OK = {
+// The copy and the submission are two requests, not one. A creation id
+// from Email/copy is not resolvable by a later method call in the same
+// request on every server — Stalwart answers the copy with `created`
+// and then refuses "#<id>" from the next call with
+// invalidResultReference — so the submission names the concrete id.
+const COPY_OK = {
   methodResponses: [
     ['Email/copy', { created: { 'draft-x': { id: 'email-copy-1' } } }, '0'],
-    ['EmailSubmission/set', { created: { '1': { id: 'sub-1' } } }, '1'],
+  ],
+};
+
+const SUBMIT_OK = {
+  methodResponses: [
+    ['EmailSubmission/set', { created: { '1': { id: 'sub-1' } } }, '0'],
   ],
 };
 
@@ -75,11 +85,12 @@ describe('JMAPClient.sendEmail send-as group account', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('copies an autosaved primary draft into the target account and destroys the stale one after success', async () => {
+  it('copies an autosaved primary draft in a request of its own, submits the id it returned, and destroys the stale one after success', async () => {
     const client = createClient();
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(jsonResponse(GROUP_MAILBOXES))
-      .mockResolvedValueOnce(jsonResponse(COPY_AND_SUBMIT_OK))
+      .mockResolvedValueOnce(jsonResponse(COPY_OK))
+      .mockResolvedValueOnce(jsonResponse(SUBMIT_OK))
       .mockResolvedValueOnce(jsonResponse(DESTROY_OK));
 
     await client.sendEmail(
@@ -88,14 +99,15 @@ describe('JMAPClient.sendEmail send-as group account', () => {
       'group-1',
     );
 
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
 
     const bodies = bodiesOf(fetchSpy);
 
     // The stale primary draft is never submitted directly: it is copied
     // into the target account (body, headers and attachments intact) and
-    // the copy is back-referenced by the submission.
-    const [copyCall, submitCall] = bodies[1].methodCalls;
+    // the copy is what gets submitted.
+    expect(bodies[1].methodCalls).toHaveLength(1);
+    const copyCall = bodies[1].methodCalls[0];
     expect(copyCall[0]).toBe('Email/copy');
     expect(copyCall[1].fromAccountId).toBe('account-1');
     expect(copyCall[1].accountId).toBe('group-1');
@@ -106,12 +118,17 @@ describe('JMAPClient.sendEmail send-as group account', () => {
     expect(copied.id).toBe('stale-draft-1');
     expect(copied.mailboxIds).toEqual({ 'g-drafts': true });
 
+    const submitCall = bodies[2].methodCalls[0];
     expect(submitCall[0]).toBe('EmailSubmission/set');
     const submissionEmailId = (Object.values(submitCall[1].create)[0] as { emailId: string }).emailId;
-    expect(submissionEmailId.startsWith('#')).toBe(true);
+    // The concrete id, never a creation reference — a server that
+    // refuses to resolve one from Email/copy would otherwise reject a
+    // send whose copy had already landed.
+    expect(submissionEmailId).toBe('email-copy-1');
+    expect(submitCall[1].onSuccessUpdateEmail['#1']['mailboxIds/g-sent']).toBe(true);
 
     // Cleanup destroys the stale draft in the primary account, after success.
-    const cleanupCall = bodies[2].methodCalls[0];
+    const cleanupCall = bodies[3].methodCalls[0];
     expect(cleanupCall[0]).toBe('Email/set');
     expect(cleanupCall[1].accountId).toBe('account-1');
     expect(cleanupCall[1].destroy).toEqual(['stale-draft-1']);
@@ -122,9 +139,11 @@ describe('JMAPClient.sendEmail send-as group account', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(jsonResponse(GROUP_MAILBOXES))
       .mockResolvedValueOnce(jsonResponse({
+        methodResponses: [['Email/copy', { created: { 'draft-x': { id: 'copy-1' } } }, '0']],
+      }))
+      .mockResolvedValueOnce(jsonResponse({
         methodResponses: [
-          ['Email/copy', { created: { 'draft-x': { id: 'copy-1' } } }, '0'],
-          ['EmailSubmission/set', { notCreated: { '1': { type: 'forbiddenFrom', description: 'Refused' } } }, '1'],
+          ['EmailSubmission/set', { notCreated: { '1': { type: 'forbiddenFrom', description: 'Refused' } } }, '0'],
         ],
       }))
       .mockResolvedValueOnce(jsonResponse({
@@ -141,9 +160,9 @@ describe('JMAPClient.sendEmail send-as group account', () => {
 
     // The refused submission must not strand the copy in the group
     // account's Drafts, and the primary draft must survive untouched.
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
     const bodies = bodiesOf(fetchSpy);
-    const cleanupCall = bodies[2].methodCalls[0];
+    const cleanupCall = bodies[3].methodCalls[0];
     expect(cleanupCall[0]).toBe('Email/set');
     expect(cleanupCall[1].accountId).toBe('group-1');
     expect(cleanupCall[1].destroy).toEqual(['copy-1']);

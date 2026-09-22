@@ -1580,17 +1580,18 @@ export class JMAPClient {
       },
     };
 
-    if (useExistingDraft) {
-      // Draft already lives in Drafts — don't touch its mailbox until
-      // after submission succeeds.
-      methodCalls.push(["EmailSubmission/set", {
-        accountId: targetAccountId,
-        create: { "1": { emailId: draftId, identityId: finalIdentityId } },
-        onSuccessUpdateEmail,
-      }, "0"]);
-    } else {
-      if (sendAsOther && draftId) {
-        methodCalls.push(["Email/copy", {
+    // The copy runs in a request of its own, and the submission that
+    // follows names the id it produced rather than referring back to it.
+    // A creation id from Email/copy is not resolvable by a later method
+    // call in the same request on every server: Stalwart answers the
+    // copy with `created`, and then refuses "#<id>" from the next call
+    // with invalidResultReference — which reaches the operator as a
+    // refused send for a message that was in fact copied, and leaves
+    // that copy behind in the target account's Drafts.
+    let copiedEmailId: string | undefined;
+    if (!useExistingDraft && sendAsOther && draftId) {
+      const copyResponse = await this.request([
+        ["Email/copy", {
           fromAccountId: this.accountId,
           accountId: targetAccountId,
           create: {
@@ -1600,25 +1601,56 @@ export class JMAPClient {
               keywords: { "$draft": true },
             },
           },
-        }, "0"]);
-      } else {
-        methodCalls.push(["Email/set", {
-          accountId: targetAccountId,
-          create: {
-            [emailId]: {
-              from: [{ ...(fromName ? { name: fromName } : {}), email: fromEmail || this.username }],
-              to: to.map(email => ({ email })),
-              cc: cc?.map(email => ({ email })),
-              bcc: bcc?.map(email => ({ email })),
-              subject,
-              keywords: { "$draft": true },
-              mailboxIds: { [holdingMailboxId]: true },
-              bodyValues: { "1": { value: body } },
-              textBody: [{ partId: "1", type: "text/plain" }],
-            },
-          },
-        }, "0"]);
+        }, "0"],
+      ], this.submissionUsing());
+
+      const copyResult = copyResponse.methodResponses?.[0];
+      if (copyResult?.[0] === 'error') {
+        throw new Error(copyResult[1]?.description || `Failed to copy draft: ${copyResult[1]?.type}`);
       }
+      const notCopied = copyResult?.[1]?.notCreated;
+      if (notCopied) {
+        const first = Object.values(notCopied)[0] as { description?: string; type?: string };
+        throw new Error(first?.description || first?.type || 'Failed to copy draft');
+      }
+      const copied = Object.values(copyResult?.[1]?.created ?? {})[0] as { id?: string } | undefined;
+      copiedEmailId = copied?.id;
+      if (!copiedEmailId) {
+        throw new Error('Failed to copy draft');
+      }
+    }
+
+    if (useExistingDraft) {
+      // Draft already lives in Drafts — don't touch its mailbox until
+      // after submission succeeds.
+      methodCalls.push(["EmailSubmission/set", {
+        accountId: targetAccountId,
+        create: { "1": { emailId: draftId, identityId: finalIdentityId } },
+        onSuccessUpdateEmail,
+      }, "0"]);
+    } else if (copiedEmailId) {
+      methodCalls.push(["EmailSubmission/set", {
+        accountId: targetAccountId,
+        create: { "1": { emailId: copiedEmailId, identityId: finalIdentityId } },
+        onSuccessUpdateEmail,
+      }, "0"]);
+    } else {
+      methodCalls.push(["Email/set", {
+        accountId: targetAccountId,
+        create: {
+          [emailId]: {
+            from: [{ ...(fromName ? { name: fromName } : {}), email: fromEmail || this.username }],
+            to: to.map(email => ({ email })),
+            cc: cc?.map(email => ({ email })),
+            bcc: bcc?.map(email => ({ email })),
+            subject,
+            keywords: { "$draft": true },
+            mailboxIds: { [holdingMailboxId]: true },
+            bodyValues: { "1": { value: body } },
+            textBody: [{ partId: "1", type: "text/plain" }],
+          },
+        },
+      }, "0"]);
       methodCalls.push(["EmailSubmission/set", {
         accountId: targetAccountId,
         create: { "1": { emailId: `#${emailId}`, identityId: finalIdentityId } },
@@ -1628,7 +1660,7 @@ export class JMAPClient {
 
     const response = await this.request(methodCalls, this.submissionUsing());
 
-    let createdEmailId: string | undefined;
+    let createdEmailId: string | undefined = copiedEmailId;
     let sendError: Error | undefined;
     if (response.methodResponses) {
       for (const [methodName, result] of response.methodResponses) {

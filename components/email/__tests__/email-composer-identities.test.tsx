@@ -71,8 +71,11 @@ describe('EmailComposer account-grouped identities', () => {
       />
     );
 
+    // The account travels with the selection: an identity id alone is
+    // unique only within its account, and two shared mailboxes may well
+    // number theirs identically.
     const select = screen.getByRole('combobox', { name: 'from' }) as HTMLSelectElement;
-    expect(select.value).toBe('id-team');
+    expect(select.value).toBe('acc-team:id-team');
   });
 
   it('keeps the primary identity in compose mode even when a non-primary email is selected', () => {
@@ -100,7 +103,7 @@ describe('EmailComposer account-grouped identities', () => {
     render(<EmailComposer onSend={onSend} />);
 
     fireEvent.change(screen.getByRole('combobox', { name: 'from' }), {
-      target: { value: 'id-team' },
+      target: { value: 'acc-team:id-team' },
     });
     fireEvent.change(screen.getByPlaceholderText('to_placeholder'), {
       target: { value: 'friend@example.com' },
