@@ -167,6 +167,14 @@ describe('reading a stored document', () => {
     }
   });
 
+  it('reads a structured quote, and an older string as text with no attribution', () => {
+    const structured = parseDocument('{"v":1,"body":[],"signAs":"house","quoted":{"attribution":"On x wrote:","text":"hi"}}');
+    expect(structured?.quoted).toEqual({ attribution: 'On x wrote:', text: 'hi' });
+    const legacy = parseDocument('{"v":1,"body":[],"signAs":"house","quoted":"On x wrote:\\n> hi"}');
+    expect(legacy?.quoted).toEqual({ attribution: '', text: 'On x wrote:\n> hi' });
+    expect(parseDocument('{"v":1,"body":[],"signAs":"house","quoted":"   "}')?.quoted).toBeUndefined();
+  });
+
   it('treats an unknown signature choice as the house, never as a person', () => {
     expect(parseDocument('{"v":1,"body":[],"signAs":"whoever"}')?.signAs).toBe('house');
   });

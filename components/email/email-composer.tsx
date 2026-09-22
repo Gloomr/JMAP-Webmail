@@ -31,6 +31,7 @@ import {
   LETTER_DOCUMENT_NAME,
   LETTER_DOCUMENT_TYPE,
   type LetterDocument,
+  type Quoted,
 } from "@/lib/letter-document";
 
 interface EmailComposerProps {
@@ -117,20 +118,27 @@ export function EmailComposer({
    * places. What the sender starts typing into is `initialDraftText`
    * alone.
    */
-  const getInitialQuoted = () => {
-    if (!replyTo?.body) return "";
+  const getInitialQuoted = (): Quoted | null => {
+    if (!replyTo?.body) return null;
 
     const date = replyTo.receivedAt ? new Date(replyTo.receivedAt).toLocaleString() : "";
     const from = replyTo.from?.[0];
     const fromStr = from ? `${from.name || from.email}` : tCommon('unknown');
 
     if (mode === 'forward') {
-      return `---------- Forwarded message ----------\nFrom: ${fromStr}\nDate: ${date}\nSubject: ${replyTo.subject || ""}\n\n${replyTo.body}`;
+      return {
+        attribution: `---------- Forwarded message ----------\nFrom: ${fromStr}\nDate: ${date}\nSubject: ${replyTo.subject || ""}`,
+        text: replyTo.body,
+      };
     } else if (mode === 'reply' || mode === 'replyAll') {
-      return `On ${date}, ${fromStr} wrote:\n> ${replyTo.body.split('\n').join('\n> ')}`;
+      return { attribution: `On ${date}, ${fromStr} wrote:`, text: replyTo.body };
     }
-    return "";
+    return null;
   };
+
+  /** The quote as a mail client would write it into plain text. */
+  const quotedAsText = (q: Quoted) =>
+    `${q.attribution}\n> ${q.text.split('\n').join('\n> ')}`.replace(/^\n/, '');
 
   /**
    * The draft's plain-text body: the sender's words, then the thread.
@@ -143,7 +151,7 @@ export function EmailComposer({
   const getInitialBody = () => {
     const prefix = initialDraftText || "";
     const quoted = getInitialQuoted();
-    return quoted ? `${prefix}\n\n${quoted}`.replace(/^\n+/, '') : prefix;
+    return quoted ? `${prefix}\n\n${quotedAsText(quoted)}`.replace(/^\n+/, '') : prefix;
   };
 
   const [to, setTo] = useState(getInitialTo());
@@ -950,7 +958,7 @@ export function EmailComposer({
               const merged = { ...next, ...(letter.quoted ? { quoted: letter.quoted } : {}) };
               setLetter(merged);
               const prose = documentToText(merged.body);
-              setBody(merged.quoted ? `${prose}\n\n${merged.quoted}`.replace(/^\n+/, '') : prose);
+              setBody(merged.quoted ? `${prose}\n\n${quotedAsText(merged.quoted)}`.replace(/^\n+/, '') : prose);
               if (validationErrors.body) setValidationErrors(prev => ({ ...prev, body: false }));
             }}
             fetcher={(path, init) => {

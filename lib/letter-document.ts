@@ -52,13 +52,25 @@ export interface LetterDocument {
   body: RichBlock[];
   signAs: SignAs;
   /**
-   * The message being answered, as plain text, or absent.
+   * The message being answered, or absent.
    *
    * Not part of the letter: the card is what we wrote, the thread is
-   * what somebody else wrote. The gateway sets it below the footer,
-   * muted, where every mail client puts it.
+   * what somebody else wrote. The gateway sets it after the letter as a
+   * `<blockquote type="cite">` — the element every client folds away —
+   * and in the text alternative as lines behind `>`. Two fields, because
+   * those two renderings place the attribution and the text differently;
+   * a single pre-formatted string carried one alternative's markers into
+   * the other.
    */
-  quoted?: string;
+  quoted?: Quoted;
+}
+
+/** Who wrote the message being answered, and what they wrote. */
+export interface Quoted {
+  /** "On …, X wrote:" — or a forwarded message's header block. */
+  attribution: string;
+  /** Their message, as plain text, with no quote markers of its own. */
+  text: string;
 }
 
 /** The media type the document travels under, on the draft. */
@@ -347,11 +359,21 @@ export function parseDocument(raw: string): LetterDocument | null {
     if (!parsed || typeof parsed !== 'object') return null;
     const doc = parsed as Partial<LetterDocument>;
     if (doc.v !== 1 || !Array.isArray(doc.body)) return null;
+    // A draft saved before the quote was structured holds one string:
+    // read it as text with no attribution, rather than refusing a draft
+    // somebody is about to send.
+    const q: unknown = doc.quoted;
+    const quoted: Quoted | null =
+      typeof q === 'string'
+        ? q.trim() ? { attribution: '', text: q } : null
+        : q && typeof q === 'object' && typeof (q as Quoted).text === 'string'
+          ? { attribution: String((q as Quoted).attribution ?? ''), text: (q as Quoted).text }
+          : null;
     return {
       v: 1,
       body: doc.body,
       signAs: doc.signAs === 'person' ? 'person' : 'house',
-      ...(typeof doc.quoted === 'string' && doc.quoted.trim() ? { quoted: doc.quoted } : {}),
+      ...(quoted && quoted.text.trim() ? { quoted } : {}),
     };
   } catch {
     return null;
