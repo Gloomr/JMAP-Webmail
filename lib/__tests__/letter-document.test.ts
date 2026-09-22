@@ -67,6 +67,21 @@ describe('reading the editor', () => {
     ]);
   });
 
+  it('opens a list the browser left inside a paragraph', () => {
+    // What Chrome produces for insertUnorderedList on a paragraph. Read
+    // naively the paragraph is the block and the list is flattened to
+    // its words: bullets on screen, a sentence on arrival.
+    const blocks = readDocument(editor('<p><ul><li>eins</li><li>zwei</li></ul></p>'));
+    expect(blocks).toEqual([
+      { t: 'ul', items: [[{ t: 'text', v: 'eins' }], [{ t: 'text', v: 'zwei' }]] },
+    ]);
+  });
+
+  it('keeps loose words around a nested block as paragraphs of their own', () => {
+    const blocks = readDocument(editor('<p>vorher<ol><li>a</li></ol>nachher</p>'));
+    expect(blocks.map((b) => b.t)).toEqual(['p', 'ol', 'p']);
+  });
+
   it('drops a list with nothing in it rather than sending an empty one', () => {
     expect(readDocument(editor('<ol><li></li></ol>'))).toEqual([]);
   });

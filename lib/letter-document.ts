@@ -65,6 +65,7 @@ const SAFE_HREF = /^(https?:\/\/|mailto:|tel:)/i;
 /** The block each editor element becomes. */
 const BLOCK_OF: Record<string, RichBlock['t']> = {
   P: 'p',
+  DIV: 'p',
   H1: 'h1',
   H2: 'h2',
   H3: 'h3',
@@ -153,14 +154,63 @@ function hasText(nodes: Inline[]): boolean {
  */
 export function readDocument(root: HTMLElement): RichBlock[] {
   const blocks: RichBlock[] = [];
+  readBlocks(root, blocks);
+  return blocks;
+}
 
-  for (const child of Array.from(root.children)) {
-    const el = child as HTMLElement;
+/** Whether an element is one the document reads as a block of its own. */
+function isBlockElement(node: Node): node is HTMLElement {
+  return node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName in BLOCK_OF;
+}
+
+/**
+ * Reads the children of one container as blocks, unnesting as it goes.
+ *
+ * A browser turning a paragraph into a list leaves the list inside the
+ * paragraph — `<p><ul><li>…</li></ul></p>` — which is not valid HTML
+ * and is what Chrome produces all the same. Read naively, the `<p>` is
+ * the block and the list inside it is an unknown inline, flattened to
+ * its words: the sender saw bullets and the recipient got a sentence.
+ * So a container holding blocks is opened and its blocks read as
+ * siblings, with any loose inline content between them gathered into
+ * paragraphs of their own.
+ */
+function readBlocks(container: HTMLElement, blocks: RichBlock[]): void {
+  let loose: Node[] = [];
+  const flushLoose = () => {
+    if (!loose.length) return;
+    const holder = document.createElement('p');
+    for (const n of loose) holder.append(n.cloneNode(true));
+    const content = readInline(holder);
+    if (hasText(content)) blocks.push({ t: 'p', c: content });
+    loose = [];
+  };
+
+  for (const child of Array.from(container.childNodes)) {
+    if (!isBlockElement(child)) {
+      loose.push(child);
+      continue;
+    }
+    flushLoose();
+    readBlock(child, blocks);
+  }
+  flushLoose();
+}
+
+/** Reads one block element, opening it if it holds blocks itself. */
+function readBlock(el: HTMLElement, blocks: RichBlock[]): void {
+  {
     const kind = BLOCK_OF[el.tagName];
+
+    // A prose block with a block inside it is a container, not prose.
+    if (kind !== 'ul' && kind !== 'ol' && kind !== 'hr' && Array.from(el.children).some(isBlockElement)) {
+      readBlocks(el, blocks);
+      return;
+    }
 
     if (kind === 'hr') {
       blocks.push({ t: 'hr' });
-      continue;
+      return;
     }
 
     if (kind === 'ul' || kind === 'ol') {
@@ -169,18 +219,14 @@ export function readDocument(root: HTMLElement): RichBlock[] {
         .map((li) => readInline(li))
         .filter(hasText);
       if (items.length) blocks.push({ t: kind, items });
-      continue;
+      return;
     }
 
     const content = readInline(el);
-    if (!hasText(content)) continue;
-    // The three other kinds already continued above; an element the
-    // table does not name — a div the browser left behind — is prose.
-    const prose: ProseKind = kind ?? 'p';
+    if (!hasText(content)) return;
+    const prose: ProseKind = kind;
     blocks.push({ t: prose, c: content });
   }
-
-  return blocks;
 }
 
 /** Escapes text for the markup the editor is filled with. */
