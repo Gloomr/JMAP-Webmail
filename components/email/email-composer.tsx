@@ -18,6 +18,7 @@ import { useIdentityStore } from "@/stores/identity-store";
 import { SubAddressHelper } from "@/components/identity/sub-address-helper";
 import { generateSubAddress } from "@/lib/sub-addressing";
 import { identityKey, resolveIdentityKey as resolveIdentity } from "@/lib/identity-key";
+import type { ReplyContext } from "@/lib/reply-context";
 import { substitutePlaceholders } from "@/lib/template-utils";
 import { TemplatePicker } from "@/components/templates/template-picker";
 import { TemplateForm } from "@/components/templates/template-form";
@@ -36,6 +37,7 @@ interface EmailComposerProps {
     fromName?: string;
     identityId?: string;
     accountId?: string;
+    replyContext?: ReplyContext;
   }) => void | Promise<void>;
   onClose?: () => void;
   onDiscardDraft?: (draftId: string) => void;
@@ -50,6 +52,9 @@ interface EmailComposerProps {
     body?: string;
     receivedAt?: string;
     accountId?: string;
+    messageId?: string | string[];
+    references?: string[];
+    emailId?: string;
   };
 }
 
@@ -144,6 +149,19 @@ export function EmailComposer({
   const otherAccountIdentities = Object.entries(identitiesByAccount).filter(
     ([accountId, list]) => accountId !== primaryAccountId && list.length > 0
   );
+
+  // Only a reply answers something. A forward starts its own
+  // conversation, and claiming otherwise files it inside the thread it
+  // was forwarded out of, in every client that reads the header.
+  const replyContext: ReplyContext | undefined =
+    (mode === 'reply' || mode === 'replyAll') && replyTo?.messageId?.length
+      ? {
+          messageId: replyTo.messageId,
+          references: replyTo.references,
+          emailId: replyTo.emailId,
+          accountId: replyTo.accountId,
+        }
+      : undefined;
 
   const identityLookup = { identities, identitiesByAccount, primaryAccountId, primaryIdentity };
   const resolveIdentityKey = (key: string | null) => resolveIdentity(key, identityLookup);
@@ -400,7 +418,8 @@ export function EmailComposer({
         fromEmail,
         draftId || undefined,
         uploadedAttachments,
-        currentIdentity?.name || undefined
+        currentIdentity?.name || undefined,
+        replyContext
       );
 
       setDraftId(savedDraftId);
@@ -523,6 +542,7 @@ export function EmailComposer({
         fromName: identity?.name || undefined,
         identityId: identity?.id,
         accountId,
+        replyContext,
       });
 
     const clearComposer = () => {

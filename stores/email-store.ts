@@ -8,6 +8,7 @@ import { mergeAccountPages } from "@/lib/jmap/unified-query";
 import type { AccountPage, UnifiedCursor, UnifiedTarget } from "@/lib/jmap/unified-query";
 import { accountScopedKey, emailRowKey, sameRow, findEmailRow, findThreadRow, owningAccountId } from "@/lib/thread-utils";
 import type { RowKey } from "@/lib/thread-utils";
+import type { ReplyContext } from '@/lib/reply-context';
 
 interface EmailStore {
   emails: Email[];
@@ -65,7 +66,7 @@ interface EmailStore {
   loadMoreEmails: (client: JMAPClient) => Promise<void>;
   fetchEmailContent: (client: JMAPClient, emailId: string, accountId?: string) => Promise<Email | null>;
   fetchQuota: (client: JMAPClient) => Promise<void>;
-  sendEmail: (client: JMAPClient, to: string[], subject: string, body: string, cc?: string[], bcc?: string[], identityId?: string, fromEmail?: string, draftId?: string, fromName?: string, accountId?: string) => Promise<void>;
+  sendEmail: (client: JMAPClient, to: string[], subject: string, body: string, cc?: string[], bcc?: string[], identityId?: string, fromEmail?: string, draftId?: string, fromName?: string, accountId?: string, replyContext?: ReplyContext) => Promise<void>;
   deleteEmail: (client: JMAPClient, emailId: string, accountId?: string) => Promise<void>;
   markAsRead: (client: JMAPClient, emailId: string, read: boolean, accountId?: string) => Promise<void>;
   moveToMailbox: (client: JMAPClient, emailId: string, mailboxId: string, accountId?: string) => Promise<void>;
@@ -670,10 +671,10 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
     }
   },
 
-  sendEmail: async (client, to, subject, body, cc, bcc, identityId, fromEmail, draftId, fromName, accountId) => {
+  sendEmail: async (client, to, subject, body, cc, bcc, identityId, fromEmail, draftId, fromName, accountId, replyContext) => {
     set({ error: null });
     try {
-      await client.sendEmail(to, subject, body, cc, bcc, identityId, fromEmail, draftId, fromName, accountId);
+      await client.sendEmail(to, subject, body, cc, bcc, identityId, fromEmail, draftId, fromName, accountId, replyContext);
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to send email",

@@ -4,6 +4,7 @@ import { retryWithBackoff } from './retry';
 import { buildQueryRequest, type EmailQuery, type EmailPage, type EmailScope } from './search-utils';
 import type { UnifiedTarget, AccountPage } from './unified-query';
 import { creationId } from '../creation-id';
+import { buildReplyHeaders, type ReplyContext } from '../reply-context';
 
 // JMAP protocol types - these are intentionally flexible due to server variations
 interface JMAPSession {
@@ -1401,7 +1402,8 @@ export class JMAPClient {
     fromEmail?: string,
     draftId?: string,
     attachments?: Array<{ blobId: string; name: string; type: string; size: number }>,
-    fromName?: string
+    fromName?: string,
+    replyContext?: ReplyContext
   ): Promise<string> {
     const mailboxes = await this.getMailboxes();
     const draftsMailbox = mailboxes.find(mb => mb.role === 'drafts');
@@ -1409,7 +1411,7 @@ export class JMAPClient {
       throw new Error('No drafts mailbox found');
     }
 
-    const emailId = `draft-${Date.now()}`;
+    const emailId = creationId('draft');
 
     interface EmailDraft {
       from: { name?: string; email: string }[];
@@ -1417,6 +1419,8 @@ export class JMAPClient {
       cc?: { email: string }[];
       bcc?: { email: string }[];
       subject: string;
+      inReplyTo?: string[];
+      references?: string[];
       keywords: Record<string, boolean>;
       mailboxIds: Record<string, boolean>;
       bodyValues: Record<string, { value: string }>;
@@ -1430,6 +1434,9 @@ export class JMAPClient {
       cc: cc?.map(email => ({ email })),
       bcc: bcc?.map(email => ({ email })),
       subject,
+      // The draft carries them because the draft is what gets copied
+      // and submitted when the send goes out through a group account.
+      ...buildReplyHeaders(replyContext),
       keywords: { "$draft": true },
       mailboxIds: { [draftsMailbox.id]: true },
       bodyValues: { "1": { value: body } },
@@ -1524,7 +1531,8 @@ export class JMAPClient {
     fromEmail?: string,
     draftId?: string,
     fromName?: string,
-    accountId?: string
+    accountId?: string,
+    replyContext?: ReplyContext
   ): Promise<void> {
     const targetAccountId = accountId || this.accountId;
     const sendAsOther = targetAccountId !== this.accountId;
@@ -1659,6 +1667,11 @@ export class JMAPClient {
             cc: cc?.map(email => ({ email })),
             bcc: bcc?.map(email => ({ email })),
             subject,
+            // Without these a reply is a new conversation to every mail
+            // system that sees it, ours and the recipient's alike:
+            // threading is built from In-Reply-To and References
+            // (RFC 5322 §3.6.4), never from the subject.
+            ...buildReplyHeaders(replyContext),
             keywords: { "$draft": true },
             mailboxIds: { [holdingMailboxId]: true },
             bodyValues: { "1": { value: body } },
@@ -1714,6 +1727,23 @@ export class JMAPClient {
         }
       }
       throw sendError;
+    }
+
+    // $answered is what a client reads to draw the reply arrow, and it
+    // belongs to the account the original sits in — for a reply sent as
+    // a shared address that is the group's, not the sender's. A failure
+    // here is cosmetic and must never surface as a failed send.
+    if (replyContext?.emailId) {
+      try {
+        await this.request([
+          ["Email/set", {
+            accountId: replyContext.accountId || this.accountId,
+            update: { [replyContext.emailId]: { "keywords/$answered": true } },
+          }, "0"],
+        ]);
+      } catch {
+        // Best-effort: the reply is already gone.
+      }
     }
 
     // The stale autosaved primary draft is removed only after the

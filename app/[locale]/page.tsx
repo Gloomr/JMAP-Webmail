@@ -36,6 +36,7 @@ import { isFilterEmpty } from "@/lib/jmap/search-utils";
 import { WelcomeBanner } from "@/components/ui/welcome-banner";
 import { NavigationRail } from "@/components/layout/navigation-rail";
 import { useFaviconBadge } from "@/hooks/use-favicon-badge";
+import type { ReplyContext } from '@/lib/reply-context';
 
 export default function Home() {
   const router = useRouter();
@@ -394,12 +395,13 @@ export default function Home() {
     fromName?: string;
     identityId?: string;
     accountId?: string;
+    replyContext?: ReplyContext;
   }) => {
     if (!client) return;
 
     // Send errors propagate to the composer, which owns the failure UI
     // (toast, send-as fallback dialog).
-    await sendEmail(client, data.to, data.subject, data.body, data.cc, data.bcc, data.identityId, data.fromEmail, data.draftId, data.fromName, data.accountId);
+    await sendEmail(client, data.to, data.subject, data.body, data.cc, data.bcc, data.identityId, data.fromEmail, data.draftId, data.fromName, data.accountId, data.replyContext);
     setShowComposer(false);
 
     try {
@@ -1025,7 +1027,10 @@ export default function Home() {
                     subject: selectedEmail.subject,
                     body: selectedEmail.bodyValues?.[selectedEmail.textBody?.[0]?.partId || '']?.value || selectedEmail.preview || '',
                     receivedAt: selectedEmail.receivedAt,
-                    accountId: selectedEmail.accountId
+                    accountId: selectedEmail.accountId,
+                    messageId: selectedEmail.messageId,
+                    references: selectedEmail.references,
+                    emailId: selectedEmail.id
                   } : undefined}
                   initialDraftText={composerDraftText}
                   onSend={handleEmailSend}
