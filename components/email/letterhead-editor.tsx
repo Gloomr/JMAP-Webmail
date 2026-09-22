@@ -113,6 +113,16 @@ export function LetterheadEditor({
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [failed, setFailed] = useState(false);
 
+  // Read through a ref rather than listed as a dependency. The composer
+  // passes an inline function, which is a new function on every render
+  // — and every keystroke renders. With it in the effect's dependencies
+  // the frame was fetched again after each pause in typing, its markup
+  // replaced the slot, the editor was mounted afresh into the new slot,
+  // and what had been typed was gone. Measured: two frame requests and a
+  // different, empty editor element 1.5 s after typing one word.
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+
   // The document as the editor last wrote it. Compared before filling
   // the editor again, so a re-render caused by our own onChange does
   // not replace the DOM the caret sits in.
@@ -138,7 +148,7 @@ export function LetterheadEditor({
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const res = await fetcher('/render/chrome', {
+          const res = await fetcherRef.current('/render/chrome', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
@@ -166,14 +176,23 @@ export function LetterheadEditor({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [accountId, identityId, subject, recipient, doc.signAs, fetcher]);
+  }, [accountId, identityId, subject, recipient, doc.signAs]);
 
   // Put the frame in the page and find the cell to write in.
   useEffect(() => {
     const host = hostRef.current;
     if (!host || !chrome) return;
     host.innerHTML = chrome.html;
-    setSlot(host.querySelector<HTMLElement>(`#${CSS.escape(chrome.slotId)}`));
+    // The element the editor lived in is gone with the old markup, so the
+    // editor mounted into the new one starts empty. Forgetting what was
+    // last written is what lets the fill effect write the document into
+    // it again instead of judging it already there.
+    ownRef.current = '';
+    const next = host.querySelector<HTMLElement>(`#${CSS.escape(chrome.slotId)}`);
+    setSlot(next);
+    // The letter's head — wordmark, headline — stands above the writing
+    // area, and a dialog shows the top first. Bring the pen to the paper.
+    next?.scrollIntoView({ block: 'center' });
   }, [chrome]);
 
   // Fill the editor from the document, but never while the person is

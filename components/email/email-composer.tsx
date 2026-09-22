@@ -714,7 +714,11 @@ export function EmailComposer({
         </Button>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      {/* min-h-0: a flex child defaults to min-height:auto and will not
+          shrink below its content. The textarea had no height of its own,
+          so this never showed; the letter is ~640px before a word is
+          typed, and without it the column grows past the 600px dialog. */}
+      <div className="flex-1 flex flex-col min-h-0">
         <div className="space-y-2 px-4 py-3 border-b">
           {/* From field - show dropdown if multiple identities, otherwise display email */}
           <div className="flex items-center gap-2">
