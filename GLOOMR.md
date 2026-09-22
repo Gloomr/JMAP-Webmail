@@ -43,6 +43,9 @@ git fetch upstream --tags
 git checkout main
 git merge --ff-only upstream/main
 git push origin main
+# This is the push that first registers upstream's own
+# docker-publish.yml as a workflow here — see below. Disable it in
+# Settings › Actions straight afterwards, or it fails on every sync.
 
 # 2. Replay our commits onto the new release tag.
 git checkout gloomr
@@ -72,7 +75,15 @@ someone has edited an upstream file that should have been left alone —
 find out which before resolving.
 
 `.github/workflows/docker-publish.yml` is upstream's own and is left
-byte-identical on purpose, for the same reason. It is disabled in this
-repository's Actions settings rather than deleted: it publishes to a
-Docker Hub namespace this organisation does not own, and a fork that
-syncs `main` would otherwise get a failing run for it every time.
+byte-identical on purpose, for the same reason. It publishes to a Docker
+Hub namespace this organisation does not own, so it can only ever fail
+here — but it is kept rather than deleted, because deleting it is a
+change to an upstream file and every future rebase would have to
+re-apply that deletion.
+
+It is dormant while nothing pushes `main`: a fork does not inherit
+upstream's workflow registrations, and this one does not appear in
+Settings › Actions at all yet. The first `main` sync registers it, and
+that is the moment to disable it — which is why the step is written into
+the runbook above rather than left to be rediscovered from a red cross
+on an otherwise routine sync.

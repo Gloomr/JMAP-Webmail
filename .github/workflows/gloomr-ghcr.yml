@@ -2,11 +2,12 @@
 # Gloomr organisation.
 #
 # It exists beside the upstream `docker-publish.yml` rather than
-# replacing it. That file is left byte-identical to upstream so it can
-# never conflict when this branch is rebased onto a new release; it is
-# switched off in this repository's Actions settings instead, because it
-# logs in to a Docker Hub account this organisation does not have and
-# pushes to a namespace it does not own.
+# replacing it. That file logs in to a Docker Hub account this
+# organisation does not have and pushes to a namespace it does not own,
+# so it can only fail here — but it is left byte-identical, because
+# deleting it is a change to an upstream file that every future rebase
+# would have to re-apply. It is dormant until something pushes `main`,
+# and GLOOMR.md says to disable it at that moment.
 #
 # amd64 only. The machine this runs on is a Hetzner cx33, which is
 # amd64; a developer on an arm64 laptop builds the image from the
