@@ -1,6 +1,36 @@
 import DOMPurify from 'dompurify';
 
 /**
+ * Every link in a displayed message opens away from the application.
+ *
+ * A message is shown inside the webmail, and a plain `<a>` followed
+ * there takes the mailbox with it: the reader is on the sender's site
+ * with nothing left of what they were doing. Mail clients open links in
+ * a new window as a matter of course; this is the same rule, applied
+ * where the message is one element among many. `noopener noreferrer`
+ * keeps the opened page from reaching back or learning where it came
+ * from — that second part matters for a link a stranger sent.
+ *
+ * A hook rather than a config entry because DOMPurify has no "add this
+ * attribute" option, and because it applies to every sanitize call in
+ * the application at once — the viewer, the thread view, the signature
+ * preview — without each caller remembering. Registered once, at module
+ * load; `addHook` is absent where there is no DOM to hook.
+ */
+if (typeof DOMPurify.addHook === 'function') {
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName !== 'A' || !node.hasAttribute('href')) return;
+    const href = node.getAttribute('href') ?? '';
+    // Only somewhere a new tab can go. A mailto: hands off to a mail
+    // client and a same-document anchor scrolls; a target on either is
+    // at best ignored and at worst a blank tab.
+    if (!/^https?:\/\//i.test(href)) return;
+    node.setAttribute('target', '_blank');
+    node.setAttribute('rel', 'noopener noreferrer');
+  });
+}
+
+/**
  * Unified DOMPurify configuration for email content
  * Blocks all script execution vectors while preserving formatting
  * NOTE: <style> tags are forbidden to prevent global CSS injection

@@ -1,89 +1,56 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+/**
+ * The application's theme, which is light.
+ *
+ * There is one and it is not chosen. GLOOMR Mail is shipped light, on
+ * every machine, whatever the machine prefers — the same way the
+ * letters it sends stand light inline. A dark application around a
+ * light letter is a letter proof-read against the wrong background, and
+ * a theme picker is a promise that both are supported, which they are
+ * not.
+ *
+ * The store keeps the shape the rest of the application reads
+ * (`resolvedTheme` for the toaster), so nothing else had to change. The
+ * setters exist for the same reason and do nothing: a caller asking for
+ * dark gets light and is told so by the returned state.
+ */
 
-type Theme = 'light' | 'dark' | 'system';
+import { create } from 'zustand';
+
+/**
+ * Kept as wide as the readers expect. Three components still branch on
+ * `resolvedTheme === 'dark'`; the branch is never taken, and narrowing
+ * the type would only make three upstream files ours to carry through
+ * every rebase for no change in behaviour.
+ */
+type Theme = 'light' | 'dark';
 
 interface ThemeState {
   theme: Theme;
-  resolvedTheme: 'light' | 'dark';
-  setTheme: (theme: Theme) => void;
+  resolvedTheme: Theme;
+  setTheme: (theme: string) => void;
   toggleTheme: () => void;
   initializeTheme: () => void;
 }
 
-const getSystemTheme = (): 'light' | 'dark' => {
-  if (typeof window === 'undefined') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
-
-const applyTheme = (theme: 'light' | 'dark') => {
+/** Puts the light class on the document and takes any dark one off. */
+const applyLight = () => {
   if (typeof document === 'undefined') return;
-
   const root = document.documentElement;
-  // Ensure both classes are handled properly
-  if (theme === 'dark') {
-    root.classList.remove('light');
-    root.classList.add('dark');
-  } else {
-    root.classList.remove('dark');
-    root.classList.add('light');
+  root.classList.remove('dark');
+  root.classList.add('light');
+  // A value an older build persisted must not bring dark back on reload.
+  try {
+    localStorage.setItem('theme-applied', 'light');
+    localStorage.removeItem('theme-storage');
+  } catch {
+    /* storage may be unavailable; the class above is what matters */
   }
-
-  // Store in localStorage for immediate access
-  localStorage.setItem('theme-applied', theme);
 };
 
-export const useThemeStore = create<ThemeState>()(
-  persist(
-    (set, get) => ({
-      theme: 'system',
-      resolvedTheme: 'light',
-
-      setTheme: (theme) => {
-        const resolvedTheme = theme === 'system' ? getSystemTheme() : theme;
-        applyTheme(resolvedTheme);
-        set({ theme, resolvedTheme });
-      },
-
-      toggleTheme: () => {
-        const { theme } = get();
-        const nextTheme: Theme =
-          theme === 'light' ? 'dark' :
-          theme === 'dark' ? 'system' : 'light';
-        get().setTheme(nextTheme);
-      },
-
-      initializeTheme: () => {
-        const { theme } = get();
-        const resolvedTheme = theme === 'system' ? getSystemTheme() : theme;
-        applyTheme(resolvedTheme);
-        set({ resolvedTheme });
-
-        // Listen for system theme changes
-        if (typeof window !== 'undefined') {
-          const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-          const handleChange = () => {
-            const { theme } = get();
-            if (theme === 'system') {
-              const newResolvedTheme = getSystemTheme();
-              applyTheme(newResolvedTheme);
-              set({ resolvedTheme: newResolvedTheme });
-            }
-          };
-
-          // Modern browsers
-          if (mediaQuery.addEventListener) {
-            mediaQuery.addEventListener('change', handleChange);
-          } else {
-            // Fallback for older browsers
-            mediaQuery.addListener(handleChange);
-          }
-        }
-      },
-    }),
-    {
-      name: 'theme-storage',
-      partialize: (state) => ({ theme: state.theme }),
-    }
-  )
-);
+export const useThemeStore = create<ThemeState>()(() => ({
+  theme: 'light',
+  resolvedTheme: 'light',
+  setTheme: () => applyLight(),
+  toggleTheme: () => applyLight(),
+  initializeTheme: () => applyLight(),
+}));

@@ -929,6 +929,7 @@ export function EmailComposer({
             }}
             placeholder={t('body_placeholder')}
             unavailableNote={t('letterhead_unavailable')}
+            palette="light"
             className={cn(
               'h-full',
               validationErrors.body && 'ring-2 ring-red-500 dark:ring-red-400',

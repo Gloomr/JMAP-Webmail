@@ -55,6 +55,16 @@ interface LetterheadEditorProps {
   linkPrompt?: string;
   /** Shown when the letter cannot be drawn, above the writing area. */
   unavailableNote?: string;
+  /**
+   * Which palette the frame is drawn in — one, with no media query.
+   *
+   * A sent mail carries both and lets the reader's device choose. The
+   * frame sits inside this application, which has chosen already, so it
+   * asks for that palette and gets its text set in the matching ink.
+   * Left to the device, a dark machine painted the card dark under text
+   * typed in the light ink: about 1.6:1.
+   */
+  palette?: 'light' | 'dark';
   className?: string;
 }
 
@@ -105,6 +115,7 @@ export function LetterheadEditor({
   linkLabel,
   linkPrompt,
   unavailableNote,
+  palette = 'light',
   className,
 }: LetterheadEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -156,6 +167,7 @@ export function LetterheadEditor({
               identityId,
               subject,
               recipient: recipient ?? null,
+              palette,
               document: { v: 1, body: [], signAs: doc.signAs },
             }),
           });
@@ -176,7 +188,7 @@ export function LetterheadEditor({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [accountId, identityId, subject, recipient, doc.signAs]);
+  }, [accountId, identityId, subject, recipient, doc.signAs, palette]);
 
   // Put the frame in the page and find the cell to write in.
   useEffect(() => {
@@ -265,8 +277,24 @@ export function LetterheadEditor({
     />
   );
 
+  /**
+   * A link in the frame is part of a picture of the outcome, not a way
+   * out of the composer. Following one here would leave the message
+   * half-written on a page that is not this one. So it opens away, the
+   * way it will for the recipient — and the writing slot is left alone,
+   * because a link being typed is not being followed.
+   */
+  const openLinksAway = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const anchor = (event.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
+    if (!anchor) return;
+    const slotEl = slot ?? editorRef.current;
+    if (slotEl && slotEl.contains(anchor)) return;
+    event.preventDefault();
+    window.open(anchor.href, '_blank', 'noopener,noreferrer');
+  }, [slot]);
+
   return (
-    <div className={cn('flex min-h-0 flex-col', className)}>
+    <div className={cn('flex min-h-0 flex-col', className)} onClickCapture={openLinksAway}>
       <div className="flex flex-wrap items-center gap-1 border-b px-2 py-1.5">
         {TOOLS.map((tool) => (
           <button

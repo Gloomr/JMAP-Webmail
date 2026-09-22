@@ -1,31 +1,19 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
-import { useThemeStore } from '@/stores/theme-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { LanguageSwitcher } from '@/components/ui/language-switcher';
 import { SettingsSection, SettingItem, RadioGroup, ToggleSwitch } from './settings-section';
 
 export function AppearanceSettings() {
   const t = useTranslations('settings.appearance');
-  const { theme, setTheme } = useThemeStore();
   const { fontSize, listDensity, animationsEnabled, updateSetting } = useSettingsStore();
 
   return (
     <SettingsSection title={t('title')} description={t('description')}>
-      {/* Theme */}
-      <SettingItem label={t('theme.label')} description={t('theme.description')}>
-        <RadioGroup
-          value={theme}
-          onChange={(value) => setTheme(value as 'light' | 'dark' | 'system')}
-          options={[
-            { value: 'light', label: t('theme.light') },
-            { value: 'dark', label: t('theme.dark') },
-            { value: 'system', label: t('theme.system') },
-          ]}
-        />
-      </SettingItem>
-
+      {/* No theme setting: the application is light, and so is the
+          letter it writes. Offering dark here would promise something the
+          rest of the product does not keep. */}
       {/* Language */}
       <SettingItem label={t('language.label')} description={t('language.description')}>
         <LanguageSwitcher />
