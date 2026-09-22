@@ -51,6 +51,14 @@ export interface LetterDocument {
   v: 1;
   body: RichBlock[];
   signAs: SignAs;
+  /**
+   * The message being answered, as plain text, or absent.
+   *
+   * Not part of the letter: the card is what we wrote, the thread is
+   * what somebody else wrote. The gateway sets it below the footer,
+   * muted, where every mail client puts it.
+   */
+  quoted?: string;
 }
 
 /** The media type the document travels under, on the draft. */
@@ -339,7 +347,12 @@ export function parseDocument(raw: string): LetterDocument | null {
     if (!parsed || typeof parsed !== 'object') return null;
     const doc = parsed as Partial<LetterDocument>;
     if (doc.v !== 1 || !Array.isArray(doc.body)) return null;
-    return { v: 1, body: doc.body, signAs: doc.signAs === 'person' ? 'person' : 'house' };
+    return {
+      v: 1,
+      body: doc.body,
+      signAs: doc.signAs === 'person' ? 'person' : 'house',
+      ...(typeof doc.quoted === 'string' && doc.quoted.trim() ? { quoted: doc.quoted } : {}),
+    };
   } catch {
     return null;
   }

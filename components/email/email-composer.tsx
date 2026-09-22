@@ -108,20 +108,42 @@ export function EmailComposer({
     return "";
   };
 
-  const getInitialBody = () => {
-    const prefix = initialDraftText || "";
-    if (!replyTo?.body) return prefix;
+  /**
+   * The thread being answered or forwarded, as the quoted block a mail
+   * client would write — or an empty string on a fresh message.
+   *
+   * Kept apart from what the sender types: the card is ours, the thread
+   * is somebody else's, and the letterhead sets the two in different
+   * places. What the sender starts typing into is `initialDraftText`
+   * alone.
+   */
+  const getInitialQuoted = () => {
+    if (!replyTo?.body) return "";
 
     const date = replyTo.receivedAt ? new Date(replyTo.receivedAt).toLocaleString() : "";
     const from = replyTo.from?.[0];
     const fromStr = from ? `${from.name || from.email}` : tCommon('unknown');
 
     if (mode === 'forward') {
-      return `${prefix}\n\n---------- Forwarded message ----------\nFrom: ${fromStr}\nDate: ${date}\nSubject: ${replyTo.subject || ""}\n\n${replyTo.body}`;
+      return `---------- Forwarded message ----------\nFrom: ${fromStr}\nDate: ${date}\nSubject: ${replyTo.subject || ""}\n\n${replyTo.body}`;
     } else if (mode === 'reply' || mode === 'replyAll') {
-      return `${prefix}\n\nOn ${date}, ${fromStr} wrote:\n> ${replyTo.body.split('\n').join('\n> ')}`;
+      return `On ${date}, ${fromStr} wrote:\n> ${replyTo.body.split('\n').join('\n> ')}`;
     }
-    return prefix;
+    return "";
+  };
+
+  /**
+   * The draft's plain-text body: the sender's words, then the thread.
+   *
+   * This is what the draft carries as its text part and what the send
+   * gate counts, so a reply that quotes a thread without adding a word
+   * still counts as a message — it did before, and a bare "see below"
+   * is a real reply.
+   */
+  const getInitialBody = () => {
+    const prefix = initialDraftText || "";
+    const quoted = getInitialQuoted();
+    return quoted ? `${prefix}\n\n${quoted}`.replace(/^\n+/, '') : prefix;
   };
 
   const [to, setTo] = useState(getInitialTo());
@@ -132,11 +154,15 @@ export function EmailComposer({
   // The letter as a document. `body` above is its prose — kept because
   // the draft carries a readable text part beside the document, and
   // because everything downstream already counts characters in it.
-  const [letter, setLetter] = useState<LetterDocument>(() => ({
-    v: 1,
-    body: textToDocument(getInitialBody()),
-    signAs: 'house',
-  }));
+  const [letter, setLetter] = useState<LetterDocument>(() => {
+    const quoted = getInitialQuoted();
+    return {
+      v: 1,
+      body: textToDocument(initialDraftText || ""),
+      signAs: 'house',
+      ...(quoted ? { quoted } : {}),
+    };
+  });
   const [showCc, setShowCc] = useState(!!getInitialCc());
   const [showBcc, setShowBcc] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -919,8 +945,12 @@ export function EmailComposer({
             recipient={toAddresses[0]}
             document={letter}
             onChange={(next) => {
-              setLetter(next);
-              setBody(documentToText(next.body));
+              // The editor hands back what was typed; the thread it was
+              // typed above stays as it was.
+              const merged = { ...next, ...(letter.quoted ? { quoted: letter.quoted } : {}) };
+              setLetter(merged);
+              const prose = documentToText(merged.body);
+              setBody(merged.quoted ? `${prose}\n\n${merged.quoted}`.replace(/^\n+/, '') : prose);
               if (validationErrors.body) setValidationErrors(prev => ({ ...prev, body: false }));
             }}
             fetcher={(path, init) => {

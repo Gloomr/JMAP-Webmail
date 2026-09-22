@@ -168,7 +168,11 @@ export function LetterheadEditor({
               subject,
               recipient: recipient ?? null,
               palette,
-              document: { v: 1, body: [], signAs: doc.signAs },
+              // The thread is part of the picture: it stands below the
+              // footer in the frame exactly as it will in the mail, so
+              // the sender sees where their words end and the history
+              // begins.
+              document: { v: 1, body: [], signAs: doc.signAs, ...(doc.quoted ? { quoted: doc.quoted } : {}) },
             }),
           });
           if (!res.ok) throw new Error(`frame request answered ${res.status}`);
@@ -188,7 +192,7 @@ export function LetterheadEditor({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [accountId, identityId, subject, recipient, doc.signAs, palette]);
+  }, [accountId, identityId, subject, recipient, doc.signAs, doc.quoted, palette]);
 
   // Put the frame in the page and find the cell to write in.
   useEffect(() => {
