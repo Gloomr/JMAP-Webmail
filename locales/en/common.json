@@ -388,7 +388,9 @@
       "add_to_contacts": "Add to contacts",
       "view_all_emails": "View all emails from this sender",
       "no_contact": "Not in your contacts"
-    }
+    },
+    "answered": "Answered",
+    "forwarded": "Forwarded"
   },
   "email_composer": {
     "new_message": "New Message",

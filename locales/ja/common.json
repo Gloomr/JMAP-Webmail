@@ -388,7 +388,9 @@
       "add_to_contacts": "連絡先に追加",
       "view_all_emails": "この送信者のすべてのメールを表示",
       "no_contact": "連絡先に登録されていません"
-    }
+    },
+    "answered": "返信済み",
+    "forwarded": "転送済み"
   },
   "email_composer": {
     "new_message": "新規メッセージ",

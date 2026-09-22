@@ -5,7 +5,7 @@ import { formatDate } from "@/lib/utils";
 import { Email } from "@/lib/jmap/types";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
-import { Paperclip, Star, Circle, CheckSquare, Square } from "lucide-react";
+import { Paperclip, Star, Circle, CheckSquare, Square, Reply, Forward } from "lucide-react";
 import { useEmailStore } from "@/stores/email-store";
 import { emailRowKey } from "@/lib/thread-utils";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -53,6 +53,11 @@ export function EmailListItem({ email, selected, onClick, onContextMenu }: Email
   const isChecked = selectedEmailIds.has(emailRowKey(email));
   const isUnread = !email.keywords?.$seen;
   const isStarred = email.keywords?.$flagged;
+  // $answered and $forwarded are what a client reads to say a message
+  // has been dealt with. Without them a shared inbox gives a team no way
+  // to see that a colleague already replied.
+  const isAnswered = email.keywords?.["$answered"];
+  const isForwarded = email.keywords?.["$forwarded"];
   const isImportant = email.keywords?.["$important"];
   const sender = email.from?.[0];
   const colorTag = getEmailColor(email.keywords);
@@ -165,6 +170,18 @@ export function EmailListItem({ email, selected, onClick, onContextMenu }: Email
                 {sender?.name || sender?.email || "Unknown"}
               </span>
               <div className="flex items-center gap-1.5">
+                {isAnswered && (
+                  <Reply
+                    className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"
+                    aria-label={t('answered')}
+                  />
+                )}
+                {isForwarded && !isAnswered && (
+                  <Forward
+                    className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400"
+                    aria-label={t('forwarded')}
+                  />
+                )}
                 {isStarred && (
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                 )}

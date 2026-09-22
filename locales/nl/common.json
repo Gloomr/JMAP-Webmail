@@ -388,7 +388,9 @@
       "add_to_contacts": "Toevoegen aan contacten",
       "view_all_emails": "Alle e-mails van deze afzender bekijken",
       "no_contact": "Niet in uw contacten"
-    }
+    },
+    "answered": "Beantwoord",
+    "forwarded": "Doorgestuurd"
   },
   "email_composer": {
     "new_message": "Nieuw bericht",
