@@ -111,9 +111,12 @@ describe('EmailComposer account-grouped identities', () => {
     fireEvent.change(screen.getByPlaceholderText('subject_placeholder'), {
       target: { value: 'Hello' },
     });
-    fireEvent.change(screen.getByPlaceholderText('body_placeholder'), {
-      target: { value: 'Hi there' },
-    });
+    // The body is a rich-text area, not a textarea: it has no `value`
+    // and no placeholder attribute, so it is found by its role and
+    // filled the way a browser fills one.
+    const bodyField = screen.getByRole('textbox', { name: 'body_placeholder' });
+    bodyField.innerHTML = '<p>Hi there</p>';
+    fireEvent.input(bodyField);
 
     fireEvent.click(screen.getByRole('button', { name: 'send' }));
 

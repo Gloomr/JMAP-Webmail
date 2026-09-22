@@ -405,6 +405,7 @@
     "bcc": "UDW",
     "subject": "Temat",
     "body_placeholder": "Napisz swoją wiadomość...",
+    "letterhead_unavailable": "The letterhead could not be loaded, so this is not a picture of the finished mail. It is still applied when the message is sent.",
     "send": "Wyślij",
     "cancel": "Anuluj",
     "attach": "Załącz",

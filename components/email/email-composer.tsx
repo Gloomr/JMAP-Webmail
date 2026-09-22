@@ -24,6 +24,14 @@ import { TemplatePicker } from "@/components/templates/template-picker";
 import { TemplateForm } from "@/components/templates/template-form";
 import type { EmailTemplate } from "@/lib/template-types";
 import type { Identity } from "@/lib/jmap/types";
+import { LetterheadEditor } from "@/components/email/letterhead-editor";
+import {
+  documentToText,
+  textToDocument,
+  LETTER_DOCUMENT_NAME,
+  LETTER_DOCUMENT_TYPE,
+  type LetterDocument,
+} from "@/lib/letter-document";
 
 interface EmailComposerProps {
   onSend?: (data: {
@@ -121,6 +129,14 @@ export function EmailComposer({
   const [bcc, setBcc] = useState("");
   const [subject, setSubject] = useState(getInitialSubject());
   const [body, setBody] = useState(getInitialBody());
+  // The letter as a document. `body` above is its prose — kept because
+  // the draft carries a readable text part beside the document, and
+  // because everything downstream already counts characters in it.
+  const [letter, setLetter] = useState<LetterDocument>(() => ({
+    v: 1,
+    body: textToDocument(getInitialBody()),
+    signAs: 'house',
+  }));
   const [showCc, setShowCc] = useState(!!getInitialCc());
   const [showBcc, setShowBcc] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -374,6 +390,40 @@ export function EmailComposer({
         size: att.file.size,
       }));
 
+  /**
+   * The draft's attachments, with the letter's document among them.
+   *
+   * It rides as a body part rather than a header because a header has
+   * a length any real message exceeds, and because a body part is
+   * carried along by `Email/copy` — which is the path a message from a
+   * shared address takes into that address's own account. The gateway
+   * reads it, renders the letter from it and strips it, so it never
+   * reaches a recipient.
+   *
+   * A failed upload is not a failed send: the gateway then reads the
+   * draft's prose instead, which costs the headings and the lists but
+   * still arrives in the letterhead.
+   */
+  const collectAttachmentsWithLetter = async () => {
+    const uploaded = collectUploadedAttachments();
+    if (!client) return uploaded;
+    try {
+      const file = new File(
+        [JSON.stringify(letter)],
+        LETTER_DOCUMENT_NAME,
+        { type: LETTER_DOCUMENT_TYPE },
+      );
+      const { blobId, size } = await client.uploadBlob(file);
+      return [
+        ...uploaded,
+        { blobId, name: LETTER_DOCUMENT_NAME, type: LETTER_DOCUMENT_TYPE, size },
+      ];
+    } catch (err) {
+      debug.error('Could not attach the letter document to the draft:', err);
+      return uploaded;
+    }
+  };
+
   // Auto-save draft functionality
   const saveDraft = async (): Promise<string | null> => {
     if (!client) return null;
@@ -388,8 +438,10 @@ export function EmailComposer({
 
     const uploadedAttachments = collectUploadedAttachments();
 
-    // Create a hash of current data to compare with last saved
-    const currentData = JSON.stringify({ to: toAddresses, cc: ccAddresses, bcc: bccAddresses, subject, body, attachments: uploadedAttachments, identityId: selectedIdentityId, subAddressTag });
+    // The letter itself is part of what changed, so it belongs in the
+    // comparison — otherwise a formatting change alone reads as "no
+    // change" and the draft keeps the previous document.
+    const currentData = JSON.stringify({ to: toAddresses, cc: ccAddresses, bcc: bccAddresses, subject, body, letter, attachments: uploadedAttachments, identityId: selectedIdentityId, subAddressTag });
 
     // Only save if data has changed
     if (currentData === lastSavedDataRef.current) {
@@ -417,7 +469,7 @@ export function EmailComposer({
         currentIdentity?.id,
         fromEmail,
         draftId || undefined,
-        uploadedAttachments,
+        await collectAttachmentsWithLetter(),
         currentIdentity?.name || undefined,
         replyContext
       );
@@ -472,6 +524,9 @@ export function EmailComposer({
   }, []);
 
   const toAddresses = to.split(",").map(e => e.trim()).filter(Boolean);
+  // Which identity the letter is being written from decides the
+  // signature the frame shows, so the editor is told both halves.
+  const composing = resolveIdentityKey(selectedIdentityId);
   const hasContent = body || attachments.some(att => att.blobId && !att.uploading);
   const attachmentsBusy = attachments.some(att => att.uploading || att.error);
   const canSend = toAddresses.length > 0 && !!subject && hasContent && !attachmentsBusy;
@@ -588,7 +643,7 @@ export function EmailComposer({
               primaryIdentity.id,
               primaryIdentity.email,
               finalDraftId,
-              collectUploadedAttachments(),
+              await collectAttachmentsWithLetter(),
               primaryIdentity.name || undefined,
             );
             setDraftId(finalDraftId);
@@ -852,19 +907,28 @@ export function EmailComposer({
           </div>
         </div>
 
-        <div className="flex-1 px-4 py-3 min-h-0">
-          <textarea
-            className={cn(
-              "w-full h-full resize-none outline-none text-sm bg-transparent text-foreground placeholder:text-muted-foreground rounded",
-              validationErrors.body && "ring-2 ring-red-500 dark:ring-red-400"
-            )}
-            placeholder={t('body_placeholder')}
-            value={body}
-            onChange={(e) => {
-              setBody(e.target.value);
+        <div className="flex-1 min-h-0">
+          <LetterheadEditor
+            accountId={composing.accountId ?? primaryAccountId ?? ''}
+            identityId={composing.identity?.id ?? ''}
+            subject={subject}
+            recipient={toAddresses[0]}
+            document={letter}
+            onChange={(next) => {
+              setLetter(next);
+              setBody(documentToText(next.body));
               if (validationErrors.body) setValidationErrors(prev => ({ ...prev, body: false }));
             }}
-            aria-invalid={validationErrors.body || undefined}
+            fetcher={(path, init) => {
+              if (!client) return Promise.reject(new Error('not connected'));
+              return client.gatewayFetch(path, init);
+            }}
+            placeholder={t('body_placeholder')}
+            unavailableNote={t('letterhead_unavailable')}
+            className={cn(
+              'h-full',
+              validationErrors.body && 'ring-2 ring-red-500 dark:ring-red-400',
+            )}
           />
         </div>
 

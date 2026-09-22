@@ -405,6 +405,7 @@
     "bcc": "BCC",
     "subject": "Betreff",
     "body_placeholder": "Schreiben Sie Ihre Nachricht...",
+    "letterhead_unavailable": "Der Briefkopf konnte nicht geladen werden — das hier ist also kein Bild der fertigen Mail. Beim Senden wird er trotzdem gesetzt.",
     "send": "Senden",
     "cancel": "Abbrechen",
     "attach": "Anhängen",

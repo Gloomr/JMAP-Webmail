@@ -405,6 +405,7 @@
     "bcc": "CCO",
     "subject": "Asunto",
     "body_placeholder": "Escriba su mensaje...",
+    "letterhead_unavailable": "The letterhead could not be loaded, so this is not a picture of the finished mail. It is still applied when the message is sent.",
     "send": "Enviar",
     "cancel": "Cancelar",
     "attach": "Adjuntar",

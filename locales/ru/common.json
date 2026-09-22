@@ -405,6 +405,7 @@
     "bcc": "Скрытая копия",
     "subject": "Тема",
     "body_placeholder": "Напишите свое сообщение…",
+    "letterhead_unavailable": "The letterhead could not be loaded, so this is not a picture of the finished mail. It is still applied when the message is sent.",
     "send": "Отправить",
     "cancel": "Отмена",
     "attach": "Прикрепить",

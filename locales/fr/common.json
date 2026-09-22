@@ -405,6 +405,7 @@
     "bcc": "CCI",
     "subject": "Objet",
     "body_placeholder": "Écrivez votre message...",
+    "letterhead_unavailable": "The letterhead could not be loaded, so this is not a picture of the finished mail. It is still applied when the message is sent.",
     "send": "Envoyer",
     "cancel": "Annuler",
     "attach": "Joindre",

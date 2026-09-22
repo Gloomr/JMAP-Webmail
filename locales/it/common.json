@@ -405,6 +405,7 @@
     "bcc": "CCN",
     "subject": "Oggetto",
     "body_placeholder": "Scrivi il tuo messaggio...",
+    "letterhead_unavailable": "The letterhead could not be loaded, so this is not a picture of the finished mail. It is still applied when the message is sent.",
     "send": "Invia",
     "cancel": "Annulla",
     "attach": "Allega",

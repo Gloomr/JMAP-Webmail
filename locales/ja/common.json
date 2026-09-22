@@ -405,6 +405,7 @@
     "bcc": "BCC",
     "subject": "件名",
     "body_placeholder": "メッセージを入力...",
+    "letterhead_unavailable": "The letterhead could not be loaded, so this is not a picture of the finished mail. It is still applied when the message is sent.",
     "send": "送信",
     "cancel": "キャンセル",
     "attach": "添付",

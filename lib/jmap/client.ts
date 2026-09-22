@@ -201,6 +201,21 @@ export class JMAPClient {
     this.authHeader = `Bearer ${token}`;
   }
 
+  /**
+   * Issues a request to the mail gateway under the signed-in user's
+   * own credentials.
+   *
+   * The composer needs it for `/render/*`, which sits on this origin
+   * beside `/jmap` and identifies the caller exactly as JMAP does —
+   * so nobody sees a preview of a signature for an address they
+   * cannot send from.
+   *
+   * @param path  A path on this origin, such as `/render/chrome`.
+   */
+  async gatewayFetch(path: string, init?: Parameters<typeof fetch>[1]): Promise<Response> {
+    return this.authenticatedFetch(path, init);
+  }
+
   private async authenticatedFetch(
     url: string,
     init?: Parameters<typeof fetch>[1],

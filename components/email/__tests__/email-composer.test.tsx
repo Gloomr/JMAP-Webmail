@@ -40,9 +40,12 @@ describe('EmailComposer send gating', () => {
     fireEvent.change(screen.getByPlaceholderText('subject_placeholder'), {
       target: { value: 'Report' },
     });
-    fireEvent.change(screen.getByPlaceholderText('body_placeholder'), {
-      target: { value: 'See attached' },
-    });
+    // The body is a rich-text area, not a textarea: it has no `value`
+    // and no placeholder attribute, so it is found by its role and
+    // filled the way a browser fills one.
+    const bodyField = screen.getByRole('textbox', { name: 'body_placeholder' });
+    bodyField.innerHTML = '<p>See attached</p>';
+    fireEvent.input(bodyField);
 
     const sendButton = screen.getByRole('button', { name: 'send' });
     expect(sendButton).toBeEnabled();
