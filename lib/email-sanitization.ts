@@ -174,15 +174,24 @@ export function plainTextToSafeHtml(
   const linkClass = options?.linkClassName
     ? ` class="${escapeHtml(options.linkClassName)}"`
     : '';
-  return escapeHtml(text)
-    .replace(/\r\n/g, '<br>')
-    .replace(/\r/g, '<br>')
-    .replace(/\n/g, '<br>')
-    .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
-    .replace(
-      /(https?:\/\/[^\s<]+)/g,
-      `<a href="$1" target="_blank" rel="noopener noreferrer"${linkClass}>$1</a>`
-    );
+  const render = (part: string) =>
+    escapeHtml(part)
+      .replace(/\r\n/g, '<br>')
+      .replace(/\r/g, '<br>')
+      .replace(/\n/g, '<br>')
+      .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+      .replace(
+        /(https?:\/\/[^\s<]+)/g,
+        `<a href="$1" target="_blank" rel="noopener noreferrer"${linkClass}>$1</a>`
+      );
+  // The quoted history under a reply folds behind a pill, as it does in
+  // an HTML message; the words written stay open.
+  const { head, tail } = splitQuotedText(text);
+  if (!tail) return render(head);
+  return (
+    `${render(head.replace(/\s+$/, ''))}` +
+    `<details class="quoted-history"><summary style="${FOLD_SUMMARY_STYLE}">···</summary>${render(tail)}</details>`
+  );
 }
 
 /**
@@ -215,4 +224,96 @@ export function collapseBlockedImageContainers(html: string): string {
   });
 
   return doc.body.innerHTML;
+}
+
+/**
+ * Where a mail client leaves the history it quotes below a reply. Each is
+ * a marker at the top of the quoted part; the history is that element
+ * and everything after it.
+ */
+const QUOTE_MARKERS = [
+  'blockquote[type="cite"]',       // Apple Mail, Thunderbird, and our own letters
+  '.gmail_quote',
+  '.gmail_quote_container',
+  'div[id^="divRplyFwdMsg"]',      // Outlook: the rule above the quoted mail
+  '#appendonsend',                 // Outlook mobile
+  '.yahoo_quoted',
+  '.moz-cite-prefix',
+];
+
+/** The line a client writes above a quote: "On …, X wrote:" in its languages. */
+const ATTRIBUTION =
+  /\b(wrote|schrieb|a écrit|escribió|ha scritto|schreef|napisał|escreveu|написал|написав)\b|^-{3,}.+-{3,}$/i;
+
+/** The pill that stands in for folded history; styled inline, since it must survive any host. */
+const FOLD_SUMMARY_STYLE =
+  'cursor:pointer;display:inline-block;margin:10px 0 0;padding:0 10px;border-radius:9px;' +
+  'background:#e5e7eb;color:#4b5563;font:600 12px/18px system-ui,sans-serif;letter-spacing:1px;user-select:none';
+
+/**
+ * Folds the quoted history at the end of a message behind a pill, the way
+ * a mail client shows a reply: the new words open, what they answer one
+ * click away. Operates on sanitized markup and adds only a `<details>`
+ * around nodes that are already there.
+ *
+ * The fold starts at the first quote marker a client left, climbs to the
+ * element under `<body>` that holds it, and takes the attribution line
+ * above it along. A message that is nothing but history is left as it
+ * is — folding everything shows nothing.
+ */
+export function collapseQuotedHistory(html: string): string {
+  if (!html) return html;
+  const doc = parseHtmlSafely(html);
+  const body = doc.body;
+  const markers = QUOTE_MARKERS
+    .map((selector) => body.querySelector(selector))
+    .filter((el): el is Element => el !== null);
+  if (markers.length === 0) return html;
+  const marker = markers.reduce((first, el) =>
+    first.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING ? el : first,
+  );
+
+  let start: Element = marker;
+  while (start.parentElement && start.parentElement !== body) start = start.parentElement;
+  const above = start.previousElementSibling;
+  if (above && ATTRIBUTION.test(above.textContent ?? '') && (above.textContent ?? '').length < 300) {
+    start = above;
+  }
+
+  let wordsBefore = '';
+  for (let node = start.previousSibling; node; node = node.previousSibling) {
+    wordsBefore += node.textContent ?? '';
+  }
+  if (!wordsBefore.trim()) return html;
+
+  const details = doc.createElement('details');
+  details.className = 'quoted-history';
+  const summary = doc.createElement('summary');
+  summary.textContent = '···';
+  summary.setAttribute('style', FOLD_SUMMARY_STYLE);
+  details.appendChild(summary);
+  let node: Node | null = start;
+  while (node) {
+    const next: Node | null = node.nextSibling;
+    details.appendChild(node);
+    node = next;
+  }
+  body.appendChild(details);
+  return body.innerHTML;
+}
+
+/**
+ * Splits a plain-text message into the words written and the history
+ * quoted under them: the run of `>` lines at the end, with the
+ * attribution line above it. Nothing is split when the message is
+ * nothing but quote.
+ */
+function splitQuotedText(text: string): { head: string; tail: string } {
+  const lines = text.split(/\r\n|\r|\n/);
+  let at = lines.length;
+  while (at > 0 && (lines[at - 1].trim() === '' || lines[at - 1].startsWith('>'))) at--;
+  if (!lines.slice(at).some((line) => line.startsWith('>'))) return { head: text, tail: '' };
+  if (at > 0 && ATTRIBUTION.test(lines[at - 1])) at--;
+  if (at === 0) return { head: text, tail: '' };
+  return { head: lines.slice(0, at).join('\n'), tail: lines.slice(at).join('\n') };
 }

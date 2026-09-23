@@ -9,10 +9,15 @@ interface SandboxedEmailFrameProps {
 }
 
 function wrapHtmlForIframe(sanitizedHtml: string): string {
+  // The application is light, and so is the mail inside it. A frame
+  // document answers `prefers-color-scheme` from the embedding element's
+  // color-scheme rather than the machine's, so pinning both here keeps a
+  // mail's own dark-mode rules from painting it dark on a dark machine.
   return `<!DOCTYPE html>
-<html>
+<html style="color-scheme: light">
 <head>
   <meta charset="utf-8">
+  <meta name="color-scheme" content="light">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   ${generateIframeStylesheet()}
 </head>
@@ -73,6 +78,7 @@ export function SandboxedEmailFrame({ html, className }: SandboxedEmailFrameProp
         border: 'none',
         overflow: 'hidden',
         minHeight: '100px',
+        colorScheme: 'light',
       }}
       title="Email content"
     />

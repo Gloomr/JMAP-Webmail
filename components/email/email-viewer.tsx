@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { Email } from "@/lib/jmap/types";
-import { hasRichFormatting, needsIframeRendering, buildEmailSanitizeConfig, collapseBlockedImageContainers, plainTextToSafeHtml } from "@/lib/email-sanitization";
+import { hasRichFormatting, needsIframeRendering, buildEmailSanitizeConfig, collapseBlockedImageContainers, collapseQuotedHistory, plainTextToSafeHtml } from "@/lib/email-sanitization";
 import { SandboxedEmailFrame } from "./sandboxed-email-frame";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -634,7 +634,7 @@ export function EmailViewer({
         }
 
         return {
-          html: cleanHtml,
+          html: collapseQuotedHistory(cleanHtml),
           isHtml: true,
           useIframe: needsIframeRendering(htmlContent),
           hasBlockedContent: blockedExternalContent,

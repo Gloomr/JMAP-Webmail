@@ -241,14 +241,10 @@ export function generateIframeStylesheet(): string {
       table { max-width: 100%; }
       a { color: #3b82f6; }
       pre, code { white-space: pre-wrap; word-wrap: break-word; }
-      @media (prefers-color-scheme: dark) {
-        body {
-          color: #e2e8f0;
-          background: #232323;
-        }
-        a { color: #60a5fa; }
-        img { opacity: 0.9; }
-      }
+      /* The application is light only, and so is every message in it:
+         no dark palette here, whatever the machine prefers. */
+      details.quoted-history > summary { list-style: none; }
+      details.quoted-history > summary::-webkit-details-marker { display: none; }
     </style>
   `;
 }
