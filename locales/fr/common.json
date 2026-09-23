@@ -145,6 +145,7 @@
     "descending": "Décroissant"
   },
   "email_list": {
+    "me": "moi",
     "unified_failure": {
       "message": "Certains comptes n'ont pas pu être chargés : {accounts}",
       "retry": "Réessayer",

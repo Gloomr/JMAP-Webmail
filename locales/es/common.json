@@ -145,6 +145,7 @@
     "descending": "Descendente"
   },
   "email_list": {
+    "me": "yo",
     "unified_failure": {
       "message": "No se pudieron cargar algunas cuentas: {accounts}",
       "retry": "Reintentar",

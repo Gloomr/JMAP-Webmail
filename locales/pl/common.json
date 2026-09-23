@@ -145,6 +145,7 @@
     "descending": "Malejąco"
   },
   "email_list": {
+    "me": "ja",
     "unified_failure": {
       "message": "Nie udało się załadować niektórych kont: {accounts}",
       "retry": "Ponów",

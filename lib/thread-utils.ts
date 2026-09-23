@@ -62,7 +62,7 @@ export function findThreadRow(emails: Email[], threadId: string, accountId: stri
  * Groups emails by their threadId and creates ThreadGroup objects for UI display.
  * Single-email threads are still returned as ThreadGroups with emailCount=1.
  */
-export function groupEmailsByThread(emails: Email[]): ThreadGroup[] {
+export function groupEmailsByThread(emails: Email[], participants: ParticipantOptions = {}): ThreadGroup[] {
   if (!emails || emails.length === 0) {
     return [];
   }
@@ -93,7 +93,7 @@ export function groupEmailsByThread(emails: Email[]): ThreadGroup[] {
     const latestEmail = sortedEmails[0];
 
     // Collect unique participant names from all emails in thread
-    const participantNames = getThreadParticipants(sortedEmails);
+    const participantNames = getThreadParticipants(sortedEmails, 4, participants);
 
     // Check for unread, starred, and attachments
     const hasUnread = sortedEmails.some(e => !e.keywords?.$seen);
@@ -171,27 +171,48 @@ export function conversationChanged(prev: Email[], next: Email[]): boolean {
 }
 
 /**
- * Extracts unique participant names from a list of emails.
- * Includes both senders and recipients, limited to avoid UI overflow.
+ * How a conversation names its people: which addresses are the reader's
+ * own, and what to call them in place of a name — "me", in the reader's
+ * language. Without it every sender is named as they signed.
  */
-export function getThreadParticipants(emails: Email[], maxNames: number = 4): string[] {
+export interface ParticipantOptions {
+  isSelf?: (address: string) => boolean;
+  selfLabel?: string;
+}
+
+/**
+ * The senders of a conversation, each once, in the order they first
+ * spoke — the person who opened it is named first, and the reader's own
+ * replies, however many, take one place under `selfLabel`.
+ *
+ * Oldest first rather than newest, because a row reads "who is this
+ * conversation with": a thread the reader answered last would otherwise
+ * be headed by the reader.
+ */
+export function getThreadParticipants(
+  emails: Email[],
+  maxNames: number = 4,
+  options: ParticipantOptions = {},
+): string[] {
   const seen = new Set<string>();
   const names: string[] = [];
+  const chronological = [...emails].sort(
+    (a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime(),
+  );
 
-  for (const email of emails) {
-    // Add sender
-    if (email.from && email.from.length > 0) {
-      const sender = email.from[0];
-      const senderName = sender.name || sender.email.split('@')[0];
-      const key = sender.email.toLowerCase();
+  for (const email of chronological) {
+    const sender = email.from?.[0];
+    if (!sender?.email) continue;
+    const key = sender.email.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
 
-      if (!seen.has(key)) {
-        seen.add(key);
-        names.push(senderName);
-      }
-    }
+    const self = options.selfLabel && options.isSelf?.(sender.email);
+    const name = self ? options.selfLabel! : sender.name || sender.email.split('@')[0];
+    // Several own addresses are still one "me".
+    if (self && names.includes(name)) continue;
+    names.push(name);
 
-    // Stop if we have enough names
     if (names.length >= maxNames) break;
   }
 
@@ -204,7 +225,8 @@ export function getThreadParticipants(emails: Email[], maxNames: number = 4): st
  */
 export function mergeThreadEmails(
   existingGroup: ThreadGroup,
-  fetchedEmails: Email[]
+  fetchedEmails: Email[],
+  participants: ParticipantOptions = {},
 ): ThreadGroup {
   // Create a map of existing emails by ID
   const emailMap = new Map<string, Email>();
@@ -226,7 +248,7 @@ export function mergeThreadEmails(
   );
 
   const latestEmail = mergedEmails[0];
-  const participantNames = getThreadParticipants(mergedEmails);
+  const participantNames = getThreadParticipants(mergedEmails, 4, participants);
   const hasUnread = mergedEmails.some(e => !e.keywords?.$seen);
   const hasStarred = mergedEmails.some(e => e.keywords?.$flagged);
   const hasAnswered = mergedEmails.some(e => e.keywords?.["$answered"]);

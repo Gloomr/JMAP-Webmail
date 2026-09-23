@@ -145,6 +145,7 @@
     "descending": "Absteigend"
   },
   "email_list": {
+    "me": "ich",
     "unified_failure": {
       "message": "Einige Konten konnten nicht geladen werden: {accounts}",
       "retry": "Erneut versuchen",

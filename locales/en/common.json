@@ -145,6 +145,7 @@
     "descending": "Descending"
   },
   "email_list": {
+    "me": "me",
     "unified_failure": {
       "message": "Some accounts could not be loaded: {accounts}",
       "retry": "Retry",

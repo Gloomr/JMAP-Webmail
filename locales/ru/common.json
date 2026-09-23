@@ -145,6 +145,7 @@
     "descending": "По убыванию"
   },
   "email_list": {
+    "me": "я",
     "unified_failure": {
       "message": "Не удалось загрузить некоторые учётные записи: {accounts}",
       "retry": "Повторить",

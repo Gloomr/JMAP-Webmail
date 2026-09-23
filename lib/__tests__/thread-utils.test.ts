@@ -221,6 +221,23 @@ describe('getThreadParticipants', () => {
     expect(getThreadParticipants(emails)).toEqual(['Alice', 'Bob']);
   });
 
+  it('names the reader once, as themselves, however many times they wrote', () => {
+    const self = { isSelf: (a: string) => a.endsWith('@gloomr.com'), selfLabel: 'me' };
+    const emails = [
+      makeEmail({ id: 'a', from: [{ name: 'Anna', email: 'anna@example.org' }], receivedAt: '2026-07-01T10:00:00Z' }),
+      makeEmail({ id: 'b', from: [{ name: 'Kevin Collmer', email: 'kevin@gloomr.com' }], receivedAt: '2026-07-01T11:00:00Z' }),
+      makeEmail({ id: 'c', from: [{ name: 'Kevin', email: 'info@gloomr.com' }], receivedAt: '2026-07-01T12:00:00Z' }),
+    ];
+    // Oldest first, so the row reads as who the conversation is with —
+    // and both own addresses are the same "me".
+    expect(getThreadParticipants(emails, 4, self)).toEqual(['Anna', 'me']);
+  });
+
+  it('names the reader as they signed when nothing says which addresses are theirs', () => {
+    const emails = [makeEmail({ from: [{ name: 'Kevin Collmer', email: 'kevin@gloomr.com' }] })];
+    expect(getThreadParticipants(emails)).toEqual(['Kevin Collmer']);
+  });
+
   it('respects maxNames limit', () => {
     const emails = [
       makeEmail({ from: [{ name: 'A', email: 'a@x.com' }] }),

@@ -145,6 +145,7 @@
     "descending": "降順"
   },
   "email_list": {
+    "me": "自分",
     "unified_failure": {
       "message": "一部のアカウントを読み込めませんでした：{accounts}",
       "retry": "再試行",

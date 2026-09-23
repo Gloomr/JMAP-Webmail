@@ -145,6 +145,7 @@
     "descending": "Aflopend"
   },
   "email_list": {
+    "me": "ik",
     "unified_failure": {
       "message": "Sommige accounts konden niet worden geladen: {accounts}",
       "retry": "Opnieuw proberen",

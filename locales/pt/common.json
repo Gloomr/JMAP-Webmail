@@ -145,6 +145,7 @@
     "descending": "Decrescente"
   },
   "email_list": {
+    "me": "eu",
     "unified_failure": {
       "message": "Não foi possível carregar algumas contas: {accounts}",
       "retry": "Tentar novamente",

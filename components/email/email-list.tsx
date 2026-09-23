@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEmailStore } from "@/stores/email-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useIdentityStore } from "@/stores/identity-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { groupEmailsByThread, sortThreadGroups, accountScopedKey, emailRowKey, withThreadSiblings } from "@/lib/thread-utils";
 import type { RowKey } from "@/lib/thread-utils";
@@ -67,7 +68,8 @@ export function EmailList({
   onMoveToMailbox,
 }: EmailListProps) {
   const t = useTranslations('email_list');
-  const { client } = useAuthStore();
+  const { client, identities } = useAuthStore();
+  const { identitiesByAccount } = useIdentityStore();
   const {
     selectedEmailIds,
     toggleEmailSelection,
@@ -116,10 +118,23 @@ export function EmailList({
   // mailboxes — the replies we sent — count, show as the newest, and
   // decide where the thread sorts. Siblings of a row that has gone stay
   // off the screen with it.
+  // Which addresses are the reader's own, so a conversation they took
+  // part in names them once as "me" rather than as they signed.
+  const selfAddresses = useMemo(
+    () => new Set(
+      [...identities, ...Object.values(identitiesByAccount).flat()]
+        .map((identity) => identity.email.toLowerCase()),
+    ),
+    [identities, identitiesByAccount],
+  );
+
   const threadGroups = useMemo(() => {
-    const groups = groupEmailsByThread(withThreadSiblings(emails, threadSiblings ?? []));
+    const groups = groupEmailsByThread(withThreadSiblings(emails, threadSiblings ?? []), {
+      isSelf: (address) => selfAddresses.has(address.toLowerCase()),
+      selfLabel: t('me'),
+    });
     return sortThreadGroups(groups);
-  }, [emails, threadSiblings]);
+  }, [emails, threadSiblings, selfAddresses, t]);
 
   const { contextMenu, openContextMenu, closeContextMenu, menuRef } = useContextMenu<Email>();
   const { dialogProps: confirmDialogProps, confirm: confirmDialog } = useConfirmDialog();

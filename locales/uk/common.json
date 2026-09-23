@@ -145,6 +145,7 @@
     "descending": "За спаданням"
   },
   "email_list": {
+    "me": "я",
     "unified_failure": {
       "message": "Не вдалося завантажити деякі облікові записи: {accounts}",
       "retry": "Повторити",

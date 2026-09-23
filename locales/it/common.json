@@ -145,6 +145,7 @@
     "descending": "Decrescente"
   },
   "email_list": {
+    "me": "io",
     "unified_failure": {
       "message": "Impossibile caricare alcuni account: {accounts}",
       "retry": "Riprova",
