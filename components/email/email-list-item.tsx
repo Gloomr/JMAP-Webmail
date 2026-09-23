@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Paperclip, Star, Circle, CheckSquare, Square, Reply, Forward } from "lucide-react";
 import { useEmailStore } from "@/stores/email-store";
 import { emailRowKey } from "@/lib/thread-utils";
+import { stripQuotedPreview } from "@/lib/email-sanitization";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEmailDrag } from "@/hooks/use-email-drag";
@@ -224,7 +225,7 @@ export function EmailListItem({ email, selected, onClick, onContextMenu }: Email
                 ? "text-muted-foreground"
                 : "text-muted-foreground/80"
             )}>
-              {email.preview || "No preview available"}
+              {stripQuotedPreview(email.preview) || "No preview available"}
             </p>
           )}
         </div>

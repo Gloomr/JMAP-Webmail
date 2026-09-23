@@ -10,6 +10,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useEmailStore } from "@/stores/email-store";
 import { getThreadColorTag, isDraft } from "@/lib/thread-utils";
+import { stripQuotedPreview } from "@/lib/email-sanitization";
 import { ThreadEmailItem } from "./thread-email-item";
 import { useTranslations } from "next-intl";
 
@@ -194,7 +195,7 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
                   ? "text-muted-foreground"
                   : "text-muted-foreground/80"
               )}>
-                {email.preview || "No preview available"}
+                {stripQuotedPreview(email.preview) || "No preview available"}
               </p>
             )}
           </div>
@@ -438,7 +439,7 @@ export const ThreadListItem = React.forwardRef<HTMLDivElement, ThreadListItemPro
                     ? "text-muted-foreground"
                     : "text-muted-foreground/80"
                 )}>
-                  {latestEmail.preview || "No preview available"}
+                  {stripQuotedPreview(latestEmail.preview) || "No preview available"}
                 </p>
               )}
             </div>

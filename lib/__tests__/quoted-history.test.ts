@@ -1,5 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { collapseQuotedHistory, plainTextToSafeHtml } from '@/lib/email-sanitization';
+import { collapseQuotedHistory, plainTextToSafeHtml, stripQuotedPreview } from '@/lib/email-sanitization';
+
+describe('the words a list shows under the subject', () => {
+  it('stops at the signature, the attribution and the quote — whichever comes first', () => {
+    // What a server cuts from the text part of a reply, line breaks
+    // flattened to spaces.
+    expect(stripQuotedPreview('Entwurf-Test aus dem Browser. -- KEVIN GLOOMR kevin@gloomr.com On 23.9.2026, Kevin wrote: > Re: Nur'))
+      .toBe('Entwurf-Test aus dem Browser.');
+    expect(stripQuotedPreview('Danke, das passt. On 22.9.2026, 16:15:43, privat@example.org wrote: > Das hier'))
+      .toBe('Danke, das passt.');
+    expect(stripQuotedPreview('Passt. Am 22.09.2026 um 16:15 schrieb Anna: > alt')).toBe('Passt.');
+    expect(stripQuotedPreview('Siehe unten. > zitiert')).toBe('Siehe unten.');
+    expect(stripQuotedPreview('FYI ---------- Forwarded message ---------- From: X')).toBe('FYI');
+  });
+
+  it('leaves a preview alone that has nothing to cut, and one that is nothing but signature', () => {
+    expect(stripQuotedPreview('Just the words, with a dash - in them.')).toBe('Just the words, with a dash - in them.');
+    // Something rather than a blank line.
+    expect(stripQuotedPreview('-- KEVIN GLOOMR')).toBe('-- KEVIN GLOOMR');
+    expect(stripQuotedPreview(undefined)).toBe('');
+  });
+});
 
 /** Parses the result the way the viewer will render it. */
 function dom(html: string): HTMLElement {

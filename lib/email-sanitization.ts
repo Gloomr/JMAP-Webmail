@@ -303,6 +303,41 @@ export function collapseQuotedHistory(html: string): string {
 }
 
 /**
+ * Where a server-cut preview stops being the message: the signature
+ * separator, the attribution line above a quote, a quoted line, the
+ * rule above a forwarded message. Each matched against the flattened
+ * text a server hands out, in which a line break is a space.
+ */
+const PREVIEW_CUTS: readonly RegExp[] = [
+  /(?:^|\s)--\s/,
+  /(?:^|\s)>\s?/,
+  /(?:^|\s)(?:On|Am|Le|El|Il|Op|Em|W dniu)\b.{3,160}?\b(?:wrote|schrieb|a écrit|escribió|ha scritto|schreef|napisał|escreveu|написал|написав)\b:?/i,
+  /(?:^|\s)-{3,}\s*(?:Forwarded message|Weitergeleitete Nachricht|Original Message|Ursprüngliche Nachricht)/i,
+];
+
+/**
+ * The words of a message, as a list shows them under its subject.
+ *
+ * A server cuts the preview from the text part, and the text part of a
+ * reply carries the sender's signature and the whole thread under the
+ * words written — so a list showed "Thanks. -- KEVIN GLOOMR On Monday,
+ * X wrote: > …" for a one-word reply. A preview that is nothing but
+ * signature or quote is left as it is: something is better than a
+ * blank line.
+ */
+export function stripQuotedPreview(preview: string | undefined | null): string {
+  const whole = (preview ?? '').trim();
+  if (!whole) return '';
+  let cut = whole.length;
+  for (const pattern of PREVIEW_CUTS) {
+    const match = pattern.exec(whole);
+    if (match && match.index < cut) cut = match.index;
+  }
+  const words = whole.slice(0, cut).trim();
+  return words || whole;
+}
+
+/**
  * Splits a plain-text message into the words written and the history
  * quoted under them: the run of `>` lines at the end, with the
  * attribution line above it. Nothing is split when the message is

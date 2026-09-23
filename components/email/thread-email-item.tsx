@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Paperclip, Star, Circle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { isDraft } from "@/lib/thread-utils";
+import { stripQuotedPreview } from "@/lib/email-sanitization";
 
 interface ThreadEmailItemProps {
   email: Email;
@@ -97,7 +98,7 @@ export function ThreadEmailItem({
                 ? "text-muted-foreground"
                 : "text-muted-foreground/70"
             )}>
-              {email.preview || "No preview"}
+              {stripQuotedPreview(email.preview) || "No preview"}
             </span>
 
             {/* Date */}

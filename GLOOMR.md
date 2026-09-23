@@ -82,7 +82,10 @@ latter, under the signed-in user's credentials.
 - **A reply shows the words written.** The history it quotes — cite
   blockquotes, Gmail's and Outlook's markers, the trailing `>` lines of
   a plain-text reply — folds behind a pill
-  (`collapseQuotedHistory` in `lib/email-sanitization.ts`).
+  (`collapseQuotedHistory` in `lib/email-sanitization.ts`), and every
+  preview a list or a card shows stops where the signature or the
+  quote begins (`stripQuotedPreview`): the server cuts its preview from
+  the text part, which carries both.
 - **Links open away.** `lib/email-sanitization.ts` gives every http(s)
   link in a viewed mail `target="_blank" rel="noopener noreferrer"`.
 - `.github/workflows/gloomr-ghcr.yml` publishes the image under the

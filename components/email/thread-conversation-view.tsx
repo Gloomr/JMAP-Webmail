@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { Email, ThreadGroup } from "@/lib/jmap/types";
 import { isDraft } from "@/lib/thread-utils";
-import { hasRichFormatting, needsIframeRendering, buildEmailSanitizeConfig, collapseBlockedImageContainers, collapseQuotedHistory, plainTextToSafeHtml } from "@/lib/email-sanitization";
+import { hasRichFormatting, needsIframeRendering, buildEmailSanitizeConfig, collapseBlockedImageContainers, collapseQuotedHistory, plainTextToSafeHtml, stripQuotedPreview } from "@/lib/email-sanitization";
 import { SandboxedEmailFrame } from "./sandboxed-email-frame";
 import { transformInlineStyles, transformColorForDarkMode, transformBgColorForDarkMode } from "@/lib/color-transform";
 import { useThemeStore } from "@/stores/theme-store";
@@ -227,7 +227,7 @@ function DraftCard({ email, onEdit }: { email: Email; onEdit?: () => void }) {
     .map((r) => r.name || r.email)
     .filter(Boolean)
     .join(", ");
-  const words = email.preview?.trim();
+  const words = stripQuotedPreview(email.preview);
 
   return (
     <div className="border border-dashed border-border rounded-lg bg-muted/20 overflow-hidden">
@@ -545,7 +545,7 @@ function EmailCard({
           )}
           {!isExpanded && (
             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-              {email.preview || "No preview available"}
+              {stripQuotedPreview(email.preview) || "No preview available"}
             </p>
           )}
         </div>
