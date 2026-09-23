@@ -474,6 +474,17 @@ export default function Home() {
       }
     }
 
+    // The message the draft answers: the draft names it by Message-ID,
+    // and marking it answered on send wants its id. It is in the same
+    // thread, so the thread is where it is looked for.
+    const parentMessageId = full.inReplyTo?.[0];
+    const parent = parentMessageId
+      ? (await client.getThreadEmails(full.threadId, accountId)).find((candidate) => {
+          const ids = candidate.messageId as unknown as string | string[] | undefined;
+          return (Array.isArray(ids) ? ids : [ids]).includes(parentMessageId);
+        })
+      : undefined;
+
     const addresses = (list?: { email: string }[]) => (list ?? []).map((r) => r.email).filter(Boolean);
     setEditingDraft({
       id: full.id,
@@ -485,10 +496,13 @@ export default function Home() {
       subject: full.subject ?? '',
       body: full.bodyValues?.[full.textBody?.[0]?.partId ?? '']?.value ?? full.preview ?? '',
       document,
-      // A reply's draft carries the headers that thread it; the parent
-      // itself is not looked up, so it is not marked answered on send.
-      replyContext: full.inReplyTo?.length
-        ? { messageId: full.inReplyTo[0], references: full.references, accountId: full.accountId }
+      replyContext: parentMessageId
+        ? {
+            messageId: parentMessageId,
+            references: full.references,
+            emailId: parent?.id,
+            accountId: parent?.accountId ?? full.accountId,
+          }
         : undefined,
     });
     setComposerMode('compose');

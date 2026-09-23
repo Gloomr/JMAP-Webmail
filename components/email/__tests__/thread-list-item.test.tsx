@@ -55,10 +55,10 @@ vi.mock('@/stores/ui-store', () => ({
   useUIStore: (selector: (s: unknown) => unknown) => selector({ isMobile: false }),
 }));
 
-function renderRow() {
+function renderRow(group: ThreadGroup = thread) {
   return render(
     <ThreadListItem
-      thread={thread}
+      thread={group}
       isExpanded={false}
       onToggleExpand={vi.fn()}
       onEmailSelect={vi.fn()}
@@ -67,6 +67,29 @@ function renderRow() {
     />
   );
 }
+
+describe('a message with a draft under it', () => {
+  const draft = {
+    ...email,
+    id: 'd1',
+    keywords: { $draft: true, $seen: true },
+    mailboxIds: { 'drafts-1': true },
+    receivedAt: '2026-07-05T11:00:00Z',
+  } as unknown as Email;
+
+  it('is a conversation row that opens, so the draft can be reached from here', () => {
+    // One message counted, two entries to show: the single-row shape
+    // would have no way in to the draft.
+    const { container } = renderRow({ ...thread, emails: [draft, email], emailCount: 1, hasDraft: true });
+    expect(container.querySelector('[data-expand-toggle]')).not.toBeNull();
+    expect(screen.getByText('draft')).toBeInTheDocument();
+  });
+
+  it('stays a single row when there is nothing under it', () => {
+    const { container } = renderRow();
+    expect(container.querySelector('[data-expand-toggle]')).toBeNull();
+  });
+});
 
 describe('ThreadListItem folder badge', () => {
   it('shows the containing mailbox name when scope is global', () => {

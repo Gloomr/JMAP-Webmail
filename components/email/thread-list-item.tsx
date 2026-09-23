@@ -244,7 +244,10 @@ export const ThreadListItem = React.forwardRef<HTMLDivElement, ThreadListItemPro
     const isSelected = selectedAccountMatches && (selectedEmailId === latestEmail.id ||
       thread.emails.some(e => e.id === selectedEmailId));
 
-    if (emailCount === 1) {
+    // One entry to show is a single row; a message with a draft under
+    // it is a conversation, however few messages it counts — the row
+    // has to open for the draft to be reached from here.
+    if (thread.emails.length === 1) {
       return (
         <SingleEmailItem
           ref={ref}
