@@ -1304,7 +1304,13 @@ export class JMAPClient {
           if (email.headers) await this.parseEmailHeaders(email);
         }
 
-        return emails.sort((a: Email, b: Email) =>
+        // An unsent draft is not part of the conversation: shown in it,
+        // it can be neither opened nor deleted there, and it dates the
+        // thread by when somebody last typed. The composer is where a
+        // draft is edited; the Drafts listing is where it is found.
+        const sent = emails.filter((email) => !email.keywords?.$draft);
+
+        return sent.sort((a: Email, b: Email) =>
           new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
         );
       }

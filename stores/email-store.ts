@@ -1652,7 +1652,18 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
       );
 
       // Fetch all emails in the thread
-      const emails = await client.getThreadEmails(threadId, accountId);
+      const fetched = await client.getThreadEmails(threadId, accountId);
+
+      // The rows this listing already shows for the thread stay in its
+      // expansion, whatever the fetch left out: in the Drafts folder the
+      // row is the draft itself, which the conversation fetch omits.
+      const rows = get().emails.filter(
+        (e) => e.threadId === threadId && e.accountId === rowAccountId,
+      );
+      const known = new Set(fetched.map((e) => e.id));
+      const emails = [...fetched, ...rows.filter((e) => !known.has(e.id))].sort(
+        (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+      );
 
       // Update cache
       const newCache = new Map(get().threadEmailsCache);

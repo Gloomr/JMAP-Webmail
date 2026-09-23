@@ -228,6 +228,10 @@ function EmailCard({
   const t = useTranslations();
   const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
   const sender = email.from?.[0];
+  const recipients = [...(email.to ?? []), ...(email.cc ?? [])]
+    .map((r) => r.name || r.email)
+    .filter(Boolean)
+    .join(", ");
   const isUnread = !email.keywords?.$seen;
   const isStarred = email.keywords?.$flagged;
   const [hasBlockedContent, setHasBlockedContent] = useState(false);
@@ -465,6 +469,14 @@ function EmailCard({
           <div className="text-sm text-muted-foreground">
             {formatDate(email.receivedAt)}
           </div>
+          {/* Who it went to: in a conversation with several people, and
+              with our own replies in it, the sender alone does not say
+              which way a message travelled. */}
+          {recipients && (
+            <div className="text-sm text-muted-foreground truncate">
+              {t("email_viewer.to")}: {recipients}
+            </div>
+          )}
           {!isExpanded && (
             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
               {email.preview || "No preview available"}
