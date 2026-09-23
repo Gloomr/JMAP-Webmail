@@ -349,8 +349,12 @@ export function EmailComposer({
 
   useEffect(() => {
     const handleTemplateKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      // The letter is written in a contentEditable, which is a div to the
+      // event: a "t" typed there is a letter, not the template shortcut.
+      if (target?.isContentEditable || target?.closest?.('[contenteditable="true"]')) return;
       if (e.key === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         setShowTemplatePicker(true);
