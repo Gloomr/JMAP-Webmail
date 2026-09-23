@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isServerUnreachable } from '@/lib/jmap/errors';
+import { describe, it, expect, vi } from 'vitest';
+import { isServerUnreachable, serverAnswers } from '@/lib/jmap/errors';
 import { JMAPSetError } from '@/lib/jmap/client';
 
 describe('isServerUnreachable', () => {
@@ -13,13 +13,26 @@ describe('isServerUnreachable', () => {
     expect(isServerUnreachable(new Error('Request failed: 502 - Bad Gateway'))).toBe(true);
     expect(isServerUnreachable(new Error('Request failed: 503 - '))).toBe(true);
     expect(isServerUnreachable(new Error('Failed to get session: 504'))).toBe(true);
+    expect(isServerUnreachable(new Error('Failed to upload file: 502 - '))).toBe(true);
   });
 
   it('leaves a server’s own answer alone', () => {
     expect(isServerUnreachable(new Error('Request failed: 400 - bad request'))).toBe(false);
     expect(isServerUnreachable(new Error('Request failed: 401 - '))).toBe(false);
+    expect(isServerUnreachable(new Error('No sent mailbox found'))).toBe(false);
     expect(isServerUnreachable(new JMAPSetError('forbiddenFrom', 'not your address'))).toBe(false);
     expect(isServerUnreachable('Request failed: 503')).toBe(false);
     expect(isServerUnreachable(undefined)).toBe(false);
+  });
+});
+
+describe('serverAnswers', () => {
+  it('is true when the echo comes back', async () => {
+    expect(await serverAnswers({ ping: vi.fn().mockResolvedValue(undefined) })).toBe(true);
+  });
+
+  it('is false when the echo fails, whatever the reason', async () => {
+    expect(await serverAnswers({ ping: vi.fn().mockRejectedValue(new Error('Request failed: 503 - ')) })).toBe(false);
+    expect(await serverAnswers({ ping: vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) })).toBe(false);
   });
 });
