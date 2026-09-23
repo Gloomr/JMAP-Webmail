@@ -48,6 +48,16 @@ latter, under the signed-in user's credentials.
   The open conversation is fetched again after a send and on every push,
   and replaced on screen only when a message or a flag differs
   (`conversationChanged` in `lib/thread-utils.ts`).
+- **A row is a conversation.** `Email/query` collapses threads, so a page
+  and its total count conversations, and the same request fetches the
+  threads behind the rows (`Thread/get` → `Email/get` → `Mailbox/get`).
+  The messages that sit in other mailboxes — the replies we sent — ride
+  along as `siblings` (`lib/jmap/thread-siblings.ts`): they count, the
+  newest shows, and the thread sorts by it, so a conversation moves up
+  when it is answered. Trash, junk and drafts list only their own
+  messages, and a message that sits only in trash or junk stays out of
+  an inbox conversation. The rows themselves are untouched, so paging
+  anchors, the new-mail chime and the unified merge are as they were.
 - **The application is light only.** `stores/theme-store.ts` applies the
   light theme and the appearance settings offer no choice.
 - **Links open away.** `lib/email-sanitization.ts` gives every http(s)

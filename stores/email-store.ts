@@ -6,7 +6,7 @@ import { useCalendarStore } from "@/stores/calendar-store";
 import { SearchFilters, EmailQuery, EmailScope, EmailSort, DEFAULT_SEARCH_FILTERS, isFilterEmpty, resolveScopeTargets, UNIFIED_INBOX_ID } from "@/lib/jmap/search-utils";
 import { mergeAccountPages } from "@/lib/jmap/unified-query";
 import type { AccountPage, UnifiedCursor, UnifiedTarget } from "@/lib/jmap/unified-query";
-import { accountScopedKey, emailRowKey, sameRow, findEmailRow, findThreadRow, owningAccountId } from "@/lib/thread-utils";
+import { accountScopedKey, emailRowKey, sameRow, findEmailRow, findThreadRow, owningAccountId, siblingsFor } from "@/lib/thread-utils";
 import type { RowKey } from "@/lib/thread-utils";
 import type { ReplyContext } from '@/lib/reply-context';
 
@@ -15,6 +15,7 @@ interface EmailStore {
   mailboxes: Mailbox[];
   selectedEmail: Email | null;
   selectedMailbox: string;
+  threadSiblings: Email[]; // The other messages of the listed conversations: shown under their rows, never rows themselves
   isLoading: boolean;
   isLoadingEmail: boolean; // Track when a full email is being fetched
   isLoadingMore: boolean; // Track when loading more emails (pagination)
@@ -272,6 +273,19 @@ function listChanged(prev: Email[], next: Email[]): boolean {
   );
 }
 
+// Siblings arrive in whatever order the server lists a thread's members,
+// so they are compared as a set of row key → flags rather than by position.
+function siblingsChanged(prev: Email[], next: Email[]): boolean {
+  if (prev.length !== next.length) return true;
+  const flags = new Map(prev.map((e) => [emailRowKey(e), JSON.stringify(e.keywords)]));
+  return next.some((e) => flags.get(emailRowKey(e)) !== JSON.stringify(e.keywords));
+}
+
+// The siblings a set of merged pages holds for the rows that made the window.
+function siblingsOfPages(rows: Email[], pages: AccountPage[]): Email[] {
+  return siblingsFor(rows, pages.flatMap((p) => p.siblings ?? []));
+}
+
 // Single query path: browse/search/advanced-search/sort all build one
 // EmailQuery descriptor and run it through client.queryEmails from the first page.
 async function runQuery(
@@ -296,6 +310,7 @@ async function runQuery(
       set({
         currentQuery: query,
         emails: merged.emails,
+        threadSiblings: siblingsOfPages(merged.emails, pages),
         hasMoreEmails: hasUnifiedMore(merged.cursors),
         failedAccounts: failedAccountIds(pages),
         // The merged count is only truthful when every account reported one.
@@ -317,6 +332,7 @@ async function runQuery(
     set({
       currentQuery: query,
       emails: result.emails,
+      threadSiblings: result.siblings ?? [],
       hasMoreEmails: result.hasMore,
       totalEmails: result.total,
       ...clearedUnifiedState(),
@@ -330,6 +346,7 @@ async function runQuery(
       error: error instanceof Error ? error.message : "Failed to fetch emails",
       isLoading: false,
       emails: [],
+      threadSiblings: [],
       hasMoreEmails: false,
       totalEmails: 0,
       ...clearedUnifiedState(),
@@ -340,6 +357,7 @@ async function runQuery(
 
 export const useEmailStore = create<EmailStore>((set, get) => ({
   emails: [],
+  threadSiblings: [],
   mailboxes: [],
   selectedEmail: null,
   selectedMailbox: "",
@@ -558,8 +576,15 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
         }
         const merged = mergeAccountPages(pages, currentQuery.sort, emailsPerPage, unifiedCursors);
         const seen = new Set(emails.map(e => emailRowKey(e)));
+        const newRows = merged.emails.filter(e => !seen.has(emailRowKey(e)));
+        const { threadSiblings } = get();
+        const held = new Set(threadSiblings.map(e => emailRowKey(e)));
         set({
-          emails: [...emails, ...merged.emails.filter(e => !seen.has(emailRowKey(e)))],
+          emails: [...emails, ...newRows],
+          threadSiblings: [
+            ...threadSiblings,
+            ...siblingsOfPages(newRows, pages).filter(e => !held.has(emailRowKey(e))),
+          ],
           hasMoreEmails: hasUnifiedMore(merged.cursors),
           // Failed pages are refetched above, so their status is fresh:
           // recompute the notice or a recovered account stays flagged and a
@@ -594,6 +619,11 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
       const seen = new Set(emails.map(e => e.id));
       return [...emails, ...incoming.filter(e => !seen.has(e.id))];
     };
+    const appendSiblings = (incoming: Email[]) => {
+      const held = get().threadSiblings;
+      const seen = new Set(held.map(e => e.id));
+      return [...held, ...incoming.filter(e => !seen.has(e.id))];
+    };
 
     try {
       const result = await client.queryEmails(
@@ -603,6 +633,7 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
       );
       set({
         emails: appendNew(result.emails),
+        threadSiblings: appendSiblings(result.siblings ?? []),
         hasMoreEmails: result.hasMore,
         // Anchor pages omit `total`; keep the count from the initial page.
         totalEmails: result.total || totalEmails,
@@ -622,6 +653,7 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
           );
           set({
             emails: result.emails,
+            threadSiblings: result.siblings ?? [],
             hasMoreEmails: result.hasMore,
             totalEmails: result.total,
             isLoadingMore: false,
@@ -1517,9 +1549,11 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
         // rows; replacing the list would silently drop them. Push refresh is
         // best-effort, so keep the previous list and try again next tick.
         if (pages.some(p => p.failed)) return;
-        if (listChanged(currentEmails, merged.emails)) {
+        const nextSiblings = siblingsOfPages(merged.emails, pages);
+        if (listChanged(currentEmails, merged.emails) || siblingsChanged(get().threadSiblings, nextSiblings)) {
           set({
             emails: merged.emails,
+            threadSiblings: nextSiblings,
             hasMoreEmails: hasUnifiedMore(merged.cursors),
             unifiedPages: pages,
             unifiedCursors: merged.cursors,
@@ -1557,11 +1591,15 @@ export const useEmailStore = create<EmailStore>((set, get) => ({
         get().handleNewEmailNotification(newest);
       }
 
-      const hasChanged = listChanged(currentEmails, result.emails);
+      const nextSiblings = result.siblings ?? [];
+      const hasChanged =
+        listChanged(currentEmails, result.emails) ||
+        siblingsChanged(get().threadSiblings, nextSiblings);
 
       if (hasChanged) {
         set({
           emails: result.emails,
+          threadSiblings: nextSiblings,
           hasMoreEmails: result.hasMore,
           totalEmails: result.total,
         });

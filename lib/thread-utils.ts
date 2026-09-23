@@ -129,6 +129,27 @@ export function sortThreadGroups(groups: ThreadGroup[]): ThreadGroup[] {
 }
 
 /**
+ * The rows of a listing together with the other messages of their
+ * conversations, for grouping into thread rows.
+ *
+ * A sibling rides along only while its conversation still has a row: a
+ * row removed by a delete or a move takes its siblings off the screen
+ * with it, rather than leaving a sent reply standing in the inbox as a
+ * conversation of its own.
+ */
+export function withThreadSiblings(rows: Email[], siblings: Email[]): Email[] {
+  const kept = siblingsFor(rows, siblings);
+  return kept.length === 0 ? rows : [...rows, ...kept];
+}
+
+/** Of `candidates`, those that belong to a conversation one of `rows` heads. */
+export function siblingsFor(rows: Email[], candidates: Email[]): Email[] {
+  if (candidates.length === 0) return [];
+  const listed = new Set(rows.map((e) => accountScopedKey(e.accountId, e.threadId)));
+  return candidates.filter((e) => listed.has(accountScopedKey(e.accountId, e.threadId)));
+}
+
+/**
  * Whether a re-fetched conversation differs from the one on screen in a way
  * the screen would show: a message arrived or went, or one changed its
  * flags. Bodies are not compared — a message does not change its text.

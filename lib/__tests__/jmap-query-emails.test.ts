@@ -19,6 +19,56 @@ describe('JMAPClient.queryEmails', () => {
     vi.restoreAllMocks();
   });
 
+  it('asks for the conversations behind the rows in the same request, and hands their other messages back as siblings', async () => {
+    const client = createTestClient();
+    const spy = mockFetch({
+      methodResponses: [
+        ['Email/query', { ids: ['e1'], total: 1, position: 0 }, '0'],
+        ['Email/get', { list: [{ id: 'e1', threadId: 't1', mailboxIds: { 'mb-1': true } }] }, '1'],
+        ['Thread/get', { list: [{ id: 't1', emailIds: ['e1', 'sent', 'gone'] }] }, '2'],
+        ['Email/get', { list: [
+          { id: 'e1', threadId: 't1', mailboxIds: { 'mb-1': true } },
+          { id: 'sent', threadId: 't1', mailboxIds: { 'mb-sent': true } },
+          { id: 'gone', threadId: 't1', mailboxIds: { 'mb-trash': true } },
+        ] }, '3'],
+        ['Mailbox/get', { list: [
+          { id: 'mb-1', role: 'inbox' }, { id: 'mb-sent', role: 'sent' }, { id: 'mb-trash', role: 'trash' },
+        ] }, '4'],
+      ],
+    });
+
+    const result = await client.queryEmails({ ...folderTextQuery, text: undefined }, firstPage);
+
+    const calls = bodyOf(spy).methodCalls;
+    expect(calls.map((c: [string]) => c[0])).toEqual(['Email/query', 'Email/get', 'Thread/get', 'Email/get', 'Mailbox/get']);
+    // One row per conversation, so the page and its total count conversations.
+    expect(calls[0][1].collapseThreads).toBe(true);
+    expect(calls[2][1]['#ids']).toEqual({ resultOf: '1', name: 'Email/get', path: '/list/*/threadId' });
+    expect(calls[3][1]['#ids']).toEqual({ resultOf: '2', name: 'Thread/get', path: '/list/*/emailIds' });
+
+    // The rows are the rows; the reply we sent rides along; what sits only
+    // in the trash does not come back into the inbox.
+    expect(result.emails.map((e) => e.id)).toEqual(['e1']);
+    expect(result.siblings.map((e) => e.id)).toEqual(['sent']);
+  });
+
+  it('shows the rows alone when the conversation calls fail, rather than failing the listing', async () => {
+    const client = createTestClient();
+    mockFetch({
+      methodResponses: [
+        ['Email/query', { ids: ['e1'], total: 1, position: 0 }, '0'],
+        ['Email/get', { list: [{ id: 'e1', threadId: 't1' }] }, '1'],
+        ['error', { type: 'unknownMethod' }, '2'],
+        ['error', { type: 'invalidResultReference' }, '3'],
+        ['Mailbox/get', { list: [] }, '4'],
+      ],
+    });
+
+    const result = await client.queryEmails(folderTextQuery, firstPage);
+    expect(result.emails.map((e) => e.id)).toEqual(['e1']);
+    expect(result.siblings).toEqual([]);
+  });
+
   it('turns a folder+text descriptor into the expected Email/query + back-referenced Email/get', async () => {
     const client = createTestClient();
     const spy = mockFetch({

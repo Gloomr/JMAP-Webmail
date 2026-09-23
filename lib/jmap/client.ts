@@ -3,6 +3,7 @@ import type { SieveScript, SieveCapabilities } from "./sieve-types";
 import { retryWithBackoff } from './retry';
 import { buildQueryRequest, type EmailQuery, type EmailPage, type EmailScope } from './search-utils';
 import type { UnifiedTarget, AccountPage } from './unified-query';
+import { siblingsOf, siblingPolicyFor } from './thread-siblings';
 import { creationId } from '../creation-id';
 import { buildReplyHeaders, type ReplyContext } from '../reply-context';
 
@@ -566,11 +567,61 @@ export class JMAPClient {
     return { trashId: pick('trash'), junkId: pick('junk') };
   }
 
+  /**
+   * The calls that turn a page of rows into the conversations they head:
+   * the threads of the rows fetched by `rowsCallId`, every message of
+   * those threads, and the account's mailbox roles, which decide which of
+   * them travel with a row. Back-references keep it in one round trip.
+   */
+  private conversationCalls(
+    accountId: string,
+    rowsCallId: string,
+    ids: { threads: string; members: string; mailboxes: string },
+  ): JMAPMethodCall[] {
+    return [
+      ["Thread/get", {
+        accountId,
+        "#ids": { resultOf: rowsCallId, name: "Email/get", path: "/list/*/threadId" },
+      }, ids.threads],
+      ["Email/get", {
+        accountId,
+        "#ids": { resultOf: ids.threads, name: "Thread/get", path: "/list/*/emailIds" },
+        properties: [...EMAIL_LIST_PROPERTIES],
+      }, ids.members],
+      ["Mailbox/get", { accountId, ids: null, properties: ["id", "role"] }, ids.mailboxes],
+    ];
+  }
+
+  /**
+   * The other messages of the rows' conversations, from the answers to
+   * `conversationCalls`, filtered by what is browsed. Mailbox ids are the
+   * account's own here, before any namespacing. A missing or failed
+   * answer yields none: the rows stand alone, as a listing did before it
+   * asked.
+   */
+  private siblingsFrom(
+    rows: Email[],
+    scope: EmailScope,
+    members: [string, JMAPResponseResult] | undefined,
+    mailboxes: [string, JMAPResponseResult] | undefined,
+  ): Email[] {
+    if (members?.[0] !== "Email/get" || mailboxes?.[0] !== "Mailbox/get") return [];
+    const known: { id: string; role?: string }[] = mailboxes[1]?.list || [];
+    const byRole = (role: string) => known.find((m) => m.role === role)?.id;
+    const browsed = scope.kind === "folder"
+      ? known.find((m) => m.id === scope.mailboxId) ?? { id: scope.mailboxId }
+      : null;
+    const hidden = scope.kind === "all" && scope.includeTrashJunk
+      ? {}
+      : { trashId: byRole("trash"), junkId: byRole("junk") };
+    return siblingsOf(rows, members[1]?.list || [], siblingPolicyFor(browsed, hidden));
+  }
+
   async queryEmails(
     query: EmailQuery,
     page: EmailPage,
     accountId?: string
-  ): Promise<{ emails: Email[]; total: number; position: number; hasMore: boolean }> {
+  ): Promise<{ emails: Email[]; siblings: Email[]; total: number; position: number; hasMore: boolean }> {
     const targetAccountId = accountId || this.accountId;
 
     const ctx =
@@ -590,16 +641,25 @@ export class JMAPClient {
         ...(req.anchorOffset !== undefined ? { anchorOffset: req.anchorOffset } : {}),
         limit: req.limit,
         calculateTotal: req.calculateTotal,
+        // One row per conversation, so a page and its total count what the
+        // list shows, and a long thread does not eat the page.
+        collapseThreads: true,
       }, "0"],
       ["Email/get", {
         accountId: targetAccountId,
         "#ids": { resultOf: "0", name: "Email/query", path: "/ids" },
         properties: [...EMAIL_LIST_PROPERTIES],
       }, "1"],
+      ...this.conversationCalls(targetAccountId, "1", { threads: "2", members: "3", mailboxes: "4" }),
     ]);
 
-    for (const [methodName, result] of response.methodResponses || []) {
-      if (methodName === 'error') {
+    const byCallId = new Map<string, [string, JMAPResponseResult]>();
+    for (const [methodName, result, callId] of response.methodResponses || []) {
+      byCallId.set(callId, [methodName, result]);
+      // The rows are the listing; without them there is nothing to show.
+      // The conversation calls are not: failing there leaves the rows
+      // standing on their own, which siblingsFrom answers with none.
+      if (methodName === 'error' && (callId === "0" || callId === "1")) {
         if (result.type === 'anchorNotFound') {
           throw new AnchorNotFoundError(result.description);
         }
@@ -607,8 +667,8 @@ export class JMAPClient {
       }
     }
 
-    const queryResponse = response.methodResponses?.[0]?.[1];
-    const emails: Email[] = response.methodResponses?.[1]?.[1]?.list || [];
+    const queryResponse = byCallId.get("0")?.[1];
+    const emails: Email[] = byCallId.get("1")?.[1]?.list || [];
     const rawTotal: number | undefined = queryResponse?.total;
     const total = rawTotal ?? 0;
     const position = queryResponse?.position ?? 0;
@@ -620,11 +680,14 @@ export class JMAPClient {
         ? ids.length >= req.limit
         : position + ids.length < rawTotal;
 
+    const siblings = this.siblingsFrom(emails, query.scope, byCallId.get("3"), byCallId.get("4"));
+
     if (accountId && accountId !== this.accountId) {
       namespaceMailboxIds(emails, accountId);
+      namespaceMailboxIds(siblings, accountId);
     }
 
-    return { emails, total, position, hasMore };
+    return { emails, siblings, total, position, hasMore };
   }
 
   // null = the account's mailboxes could not be listed (getAllMailboxes
@@ -667,6 +730,7 @@ export class JMAPClient {
         : {};
 
     const methodCalls: JMAPMethodCall[] = [];
+    const scopeOf = new Map<number, EmailScope>();
     targets.forEach((target, i) => {
       // Unresolvable trash/junk roles: skip the account's calls so its page
       // comes back failed below, rather than querying with a silently
@@ -679,6 +743,7 @@ export class JMAPClient {
         : query.scope.kind === 'all'
           ? query.scope
           : { kind: 'all', includeTrashJunk: true };
+      scopeOf.set(i, scope);
       const req = buildQueryRequest(
         { ...query, scope },
         { limit: page.limit },
@@ -692,20 +757,28 @@ export class JMAPClient {
           ...(req.position !== undefined ? { position: req.position } : {}),
           limit: req.limit,
           calculateTotal: req.calculateTotal,
+          collapseThreads: true,
         }, `q${i}`],
         ["Email/get", {
           accountId: target.accountId,
           "#ids": { resultOf: `q${i}`, name: "Email/query", path: "/ids" },
           properties: [...EMAIL_LIST_PROPERTIES],
         }, `g${i}`],
+        ...this.conversationCalls(target.accountId, `g${i}`, { threads: `t${i}`, members: `e${i}`, mailboxes: `m${i}` }),
       );
     });
 
-    const response = await this.request(methodCalls);
-
+    // Five calls per account reach the server's maxCallsInRequest with
+    // enough accounts, and one refused request would fail every page. Whole
+    // accounts per request, so a back-reference never crosses one.
+    const callsPerTarget = 5;
+    const perRequest = Math.max(1, Math.floor(this.getMaxCallsInRequest() / callsPerTarget)) * callsPerTarget;
     const byCallId = new Map<string, [string, JMAPResponseResult]>();
-    for (const [name, result, callId] of response.methodResponses || []) {
-      byCallId.set(callId, [name, result]);
+    for (let start = 0; start < methodCalls.length; start += perRequest) {
+      const response = await this.request(methodCalls.slice(start, start + perRequest));
+      for (const [name, result, callId] of response.methodResponses || []) {
+        byCallId.set(callId, [name, result]);
+      }
     }
 
     return targets.map((target, i) => {
@@ -724,8 +797,15 @@ export class JMAPClient {
         const email = byId.get(id);
         return email ? [email] : [];
       });
+      const siblings = this.siblingsFrom(
+        emails,
+        scopeOf.get(i) ?? { kind: 'all', includeTrashJunk: true },
+        byCallId.get(`e${i}`),
+        byCallId.get(`m${i}`),
+      );
       if (target.accountId !== this.accountId) {
         namespaceMailboxIds(emails, target.accountId);
+        namespaceMailboxIds(siblings, target.accountId);
       }
       const total: number | undefined = q[1]?.total;
       // anchor null = the account has nothing beyond this buffer (merge
@@ -736,6 +816,7 @@ export class JMAPClient {
       return {
         accountId: target.accountId,
         emails,
+        siblings,
         ...(total !== undefined ? { total } : {}),
         anchor: !exhausted && ids.length > 0 ? ids[ids.length - 1] : null,
       };

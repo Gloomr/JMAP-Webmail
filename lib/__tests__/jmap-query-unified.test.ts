@@ -41,13 +41,15 @@ describe('JMAPClient.queryEmailsUnified', () => {
 
     expect(spy).toHaveBeenCalledTimes(1);
     const calls = bodyOf(spy).methodCalls;
-    expect(calls).toHaveLength(4);
+    // Five calls per account: the rows, and the conversations behind them.
+    expect(calls).toHaveLength(10);
 
     expect(calls[0][0]).toBe('Email/query');
     expect(calls[0][2]).toBe('q0');
     expect(calls[0][1].accountId).toBe('account-1');
     expect(calls[0][1].limit).toBe(50);
     expect(calls[0][1].calculateTotal).toBe(true);
+    expect(calls[0][1].collapseThreads).toBe(true);
     expect(JSON.stringify(calls[0][1].filter)).toContain('"inMailbox":"inbox-1"');
 
     expect(calls[1][0]).toBe('Email/get');
@@ -55,13 +57,17 @@ describe('JMAPClient.queryEmailsUnified', () => {
     expect(calls[1][1].accountId).toBe('account-1');
     expect(calls[1][1]['#ids']).toEqual({ resultOf: 'q0', name: 'Email/query', path: '/ids' });
 
-    expect(calls[2][0]).toBe('Email/query');
-    expect(calls[2][2]).toBe('q1');
-    expect(calls[2][1].accountId).toBe('account-2');
-    expect(JSON.stringify(calls[2][1].filter)).toContain('"inMailbox":"inbox-2"');
+    expect(calls[2]).toMatchObject(['Thread/get', { accountId: 'account-1', '#ids': { resultOf: 'g0', name: 'Email/get', path: '/list/*/threadId' } }, 't0']);
+    expect(calls[3]).toMatchObject(['Email/get', { accountId: 'account-1', '#ids': { resultOf: 't0', name: 'Thread/get', path: '/list/*/emailIds' } }, 'e0']);
+    expect(calls[4]).toMatchObject(['Mailbox/get', { accountId: 'account-1', ids: null }, 'm0']);
 
-    expect(calls[3][2]).toBe('g1');
-    expect(calls[3][1]['#ids']).toEqual({ resultOf: 'q1', name: 'Email/query', path: '/ids' });
+    expect(calls[5][0]).toBe('Email/query');
+    expect(calls[5][2]).toBe('q1');
+    expect(calls[5][1].accountId).toBe('account-2');
+    expect(JSON.stringify(calls[5][1].filter)).toContain('"inMailbox":"inbox-2"');
+
+    expect(calls[6][2]).toBe('g1');
+    expect(calls[6][1]['#ids']).toEqual({ resultOf: 'q1', name: 'Email/query', path: '/ids' });
 
     expect(pages).toHaveLength(2);
     // total 10 > 2 buffered ids: more rows server-side, anchor = last id
@@ -162,7 +168,7 @@ describe('JMAPClient.queryEmailsUnified', () => {
     // 2 Mailbox/get round trips for role resolution + exactly ONE combined query request
     expect(spy).toHaveBeenCalledTimes(3);
     const calls = bodyOf(spy, 2).methodCalls;
-    expect(calls).toHaveLength(4);
+    expect(calls).toHaveLength(10);
 
     const filter0 = JSON.stringify(calls[0][1].filter);
     expect(filter0).toContain('"text":"invoice"');
@@ -171,7 +177,7 @@ describe('JMAPClient.queryEmailsUnified', () => {
     expect(filter0).toContain('"inMailbox":"j1"');
     expect(filter0).not.toContain('"t2"');
 
-    const filter1 = JSON.stringify(calls[2][1].filter);
+    const filter1 = JSON.stringify(calls[5][1].filter);
     expect(filter1).toContain('"inMailbox":"t2"');
     expect(filter1).not.toContain('"t1"');
     expect(filter1).not.toContain('"j1"');
@@ -218,7 +224,7 @@ describe('JMAPClient.queryEmailsUnified', () => {
     // only account-1's query/get pair is sent; account-2 must not be queried
     // with a filter that would include its trash/junk
     const calls = bodyOf(spy, 2).methodCalls;
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(5);
     expect(calls[0][1].accountId).toBe('account-1');
     expect(JSON.stringify(calls[0][1].filter)).toContain('"inMailbox":"t1"');
 

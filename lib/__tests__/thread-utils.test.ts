@@ -7,6 +7,8 @@ import {
   getEmailColorTag,
   getThreadColorTag,
   conversationChanged,
+  withThreadSiblings,
+  siblingsFor,
 } from '../thread-utils';
 import type { Email, ThreadGroup } from '../jmap/types';
 
@@ -21,6 +23,36 @@ const makeEmail = (overrides: Partial<Email> = {}): Email => ({
   subject: 'Test Subject',
   hasAttachment: false,
   ...overrides,
+});
+
+describe('withThreadSiblings', () => {
+  const row = makeEmail({ id: 'row', threadId: 't1' });
+  const reply = makeEmail({ id: 'reply', threadId: 't1', mailboxIds: { sent: true }, receivedAt: '2024-01-15T11:00:00Z' });
+  const stray = makeEmail({ id: 'stray', threadId: 't2', mailboxIds: { sent: true } });
+
+  it('puts the replies we sent under the row of their conversation', () => {
+    const groups = groupEmailsByThread(withThreadSiblings([row], [reply]));
+    expect(groups).toHaveLength(1);
+    expect(groups[0].emailCount).toBe(2);
+    // The reply is the newest, so it is what the row shows and sorts by.
+    expect(groups[0].latestEmail.id).toBe('reply');
+  });
+
+  it('leaves out a sibling whose row is not listed, so a sent reply never becomes a row', () => {
+    expect(siblingsFor([row], [reply, stray]).map((e) => e.id)).toEqual(['reply']);
+    expect(groupEmailsByThread(withThreadSiblings([row], [stray]))).toHaveLength(1);
+  });
+
+  it('keeps a conversation apart from a same-named thread of another account', () => {
+    const otherAccount = makeEmail({ id: 'reply-b', threadId: 't1', accountId: 'b' });
+    expect(siblingsFor([row], [otherAccount])).toEqual([]);
+  });
+
+  it('hands the rows back untouched when there is nothing to add', () => {
+    const rows = [row];
+    expect(withThreadSiblings(rows, [])).toBe(rows);
+    expect(withThreadSiblings(rows, [stray])).toBe(rows);
+  });
 });
 
 describe('conversationChanged', () => {

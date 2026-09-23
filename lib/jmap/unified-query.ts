@@ -6,6 +6,12 @@ export type UnifiedTarget = { accountId: string; mailboxId?: string };
 export type AccountPage = {
   accountId: string;
   emails: Email[];
+  /**
+   * The other messages of the rows' conversations, outside the merge: the
+   * buffer contract below is about rows, and a sibling is shown under its
+   * row wherever that row lands in the window.
+   */
+  siblings?: Email[];
   total?: number;
   anchor: string | null;
   failed?: boolean;

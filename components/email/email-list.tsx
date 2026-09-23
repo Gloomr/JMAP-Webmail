@@ -11,7 +11,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEmailStore } from "@/stores/email-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useSettingsStore } from "@/stores/settings-store";
-import { groupEmailsByThread, sortThreadGroups, accountScopedKey, emailRowKey } from "@/lib/thread-utils";
+import { groupEmailsByThread, sortThreadGroups, accountScopedKey, emailRowKey, withThreadSiblings } from "@/lib/thread-utils";
 import type { RowKey } from "@/lib/thread-utils";
 import { useContextMenu } from "@/hooks/use-context-menu";
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
@@ -99,6 +99,7 @@ export function EmailList({
     advancedSearch,
     currentQuery,
     setScope,
+    threadSiblings,
   } = useEmailStore();
 
   const [showRefreshOverlay, setShowRefreshOverlay] = useState(false);
@@ -111,10 +112,14 @@ export function EmailList({
     return () => clearTimeout(timer);
   }, [isLoading, emails.length]);
 
+  // A row heads its whole conversation: the messages that sit in other
+  // mailboxes — the replies we sent — count, show as the newest, and
+  // decide where the thread sorts. Siblings of a row that has gone stay
+  // off the screen with it.
   const threadGroups = useMemo(() => {
-    const groups = groupEmailsByThread(emails);
+    const groups = groupEmailsByThread(withThreadSiblings(emails, threadSiblings ?? []));
     return sortThreadGroups(groups);
-  }, [emails]);
+  }, [emails, threadSiblings]);
 
   const { contextMenu, openContextMenu, closeContextMenu, menuRef } = useContextMenu<Email>();
   const { dialogProps: confirmDialogProps, confirm: confirmDialog } = useConfirmDialog();
