@@ -78,23 +78,41 @@ export function EmailComposer({
 }: EmailComposerProps) {
   const t = useTranslations('email_composer');
   const tCommon = useTranslations('common');
+  const { client, identities, primaryIdentity } = useAuthStore();
+  const { identitiesByAccount, primaryAccountId } = useIdentityStore();
 
-  // Initialize with reply/forward data if provided
+  // Every address the signed-in person sends from, across their own and
+  // the shared accounts. A message from one of these is one they wrote.
+  const ownAddresses = new Set(
+    [...identities, ...Object.values(identitiesByAccount).flat()]
+      .map((identity) => identity.email.toLowerCase()),
+  );
+  const isOwn = (address?: string) => Boolean(address && ownAddresses.has(address.toLowerCase()));
+  const addresses = (list?: { email?: string }[]) =>
+    (list ?? [])
+      .map((r) => r.email)
+      .filter((email): email is string => Boolean(email) && !isOwn(email));
+
+  // Initialize with reply/forward data if provided. Answering a message
+  // we sent ourselves goes to the people it was sent to: replying to
+  // one's own mail is how a conversation is continued, not a note to
+  // oneself.
   const getInitialTo = () => {
     if (!replyTo) return "";
+    const from = replyTo.from?.[0]?.email || "";
     if (mode === 'reply') {
-      return replyTo.from?.[0]?.email || "";
+      if (isOwn(from)) return addresses(replyTo.to).join(", ") || from;
+      return from;
     } else if (mode === 'replyAll') {
-      const from = replyTo.from?.[0]?.email || "";
-      const originalTo = replyTo.to?.filter(r => r.email).map(r => r.email).join(", ") || "";
-      return [from, originalTo].filter(Boolean).join(", ");
+      const others = addresses(replyTo.to);
+      return [isOwn(from) ? "" : from, ...others].filter(Boolean).join(", ") || from;
     }
     return "";
   };
 
   const getInitialCc = () => {
     if (!replyTo || mode !== 'replyAll') return "";
-    return replyTo.cc?.map(r => r.email).join(", ") || "";
+    return addresses(replyTo.cc).join(", ");
   };
 
   const getInitialSubject = () => {
@@ -192,9 +210,6 @@ export function EmailComposer({
     onEscape: () => setShowSaveAsTemplate(false),
     restoreFocus: true,
   });
-
-  const { client, identities, primaryIdentity } = useAuthStore();
-  const { identitiesByAccount, primaryAccountId } = useIdentityStore();
 
   const otherAccountIdentities = Object.entries(identitiesByAccount).filter(
     ([accountId, list]) => accountId !== primaryAccountId && list.length > 0
