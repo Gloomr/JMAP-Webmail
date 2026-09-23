@@ -5,16 +5,17 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Identity, EmailAddress } from '@/lib/jmap/types';
-import { sanitizeSignatureHtml } from '@/lib/email-sanitization';
 import { getEmailValidationError, validateEmailList } from '@/lib/validation';
 
+// The signature is not part of the form. Every message leaves through the
+// render gateway, which sets letterhead, signature and footer from the
+// sender's GLOOMR profile and refuses `Identity/set` on the signature
+// fields, so a value typed here could neither be saved nor ever be seen.
 interface IdentityFormData {
   name: string;
   email: string;
   replyTo?: EmailAddress[];
   bcc?: EmailAddress[];
-  textSignature?: string;
-  htmlSignature?: string;
 }
 
 interface IdentityFormProps {
@@ -26,7 +27,6 @@ interface IdentityFormProps {
 export function IdentityForm({ identity, onSave, onCancel }: IdentityFormProps) {
   const t = useTranslations('identities.form');
   const tValidation = useTranslations('identities.validation_errors');
-  const tDisplay = useTranslations('identities.display');
   const isEditing = !!identity;
 
   const [formData, setFormData] = useState<IdentityFormData>({
@@ -34,8 +34,6 @@ export function IdentityForm({ identity, onSave, onCancel }: IdentityFormProps) 
     email: identity?.email || '',
     replyTo: identity?.replyTo,
     bcc: identity?.bcc,
-    textSignature: identity?.textSignature || '',
-    htmlSignature: identity?.htmlSignature || '',
   });
 
   const [replyToInput, setReplyToInput] = useState(
@@ -96,17 +94,11 @@ export function IdentityForm({ identity, onSave, onCancel }: IdentityFormProps) 
     setIsSubmitting(true);
 
     try {
-      // Sanitize HTML signature before sending to server
-      const sanitizedData: IdentityFormData = {
+      await onSave({
         ...formData,
         replyTo: parseEmailList(replyToInput),
         bcc: parseEmailList(bccInput),
-        htmlSignature: formData.htmlSignature
-          ? sanitizeSignatureHtml(formData.htmlSignature)
-          : undefined,
-      };
-
-      await onSave(sanitizedData);
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -239,48 +231,15 @@ export function IdentityForm({ identity, onSave, onCancel }: IdentityFormProps) 
         )}
       </div>
 
-      {/* Text Signature */}
+      {/* Signature — managed, not editable */}
       <div>
-        <label htmlFor="identity-text-sig" className="block text-sm font-medium mb-1">
-          {t('text_signature_label')}
-        </label>
-        <textarea
-          id="identity-text-sig"
-          maxLength={2000}
-          value={formData.textSignature}
-          onChange={(e) => setFormData({ ...formData, textSignature: e.target.value })}
-          rows={3}
-          disabled={isSubmitting}
-          aria-label={t('text_signature_label')}
-          className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground transition-all duration-200 placeholder:text-muted-foreground hover:border-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
-        />
-      </div>
-
-      {/* HTML Signature */}
-      <div>
-        <label htmlFor="identity-html-sig" className="block text-sm font-medium mb-1">
-          {t('html_signature_label')}
-        </label>
-        <textarea
-          id="identity-html-sig"
-          maxLength={5000}
-          value={formData.htmlSignature}
-          onChange={(e) => setFormData({ ...formData, htmlSignature: e.target.value })}
-          rows={5}
-          disabled={isSubmitting}
-          aria-label={t('html_signature_label')}
-          className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground font-mono transition-all duration-200 placeholder:text-muted-foreground hover:border-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
-        />
-        {formData.htmlSignature && (
-          <div className="mt-2 p-2 border rounded bg-muted">
-            <div className="text-xs text-muted-foreground mb-1">{tDisplay('preview')}</div>
-            <div
-              dangerouslySetInnerHTML={{
-                __html: sanitizeSignatureHtml(formData.htmlSignature)
-              }}
-            />
-          </div>
-        )}
+        <div className="block text-sm font-medium mb-1">{t('signature_label')}</div>
+        <p
+          className="rounded-md border border-dashed border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
+          data-testid="identity-signature-managed"
+        >
+          {t('signature_managed')}
+        </p>
       </div>
 
       {/* Actions */}

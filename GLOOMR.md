@@ -91,12 +91,17 @@ latter, under the signed-in user's credentials.
   parts the listing now fetches).
 - **Links open away.** `lib/email-sanitization.ts` gives every http(s)
   link in a viewed mail `target="_blank" rel="noopener noreferrer"`.
+- **The signature is not a setting.** The identity form
+  (`components/identity/identity-form.tsx`) has no signature fields; in
+  their place it says that letterhead, signature and footer come from
+  the sender's GLOOMR profile. The gateway refuses `Identity/set` on
+  those fields, so a form that offered them could only fail on save.
+- **Two languages.** `i18n/routing.ts` declares `en` and `de`, and
+  `locales/` holds exactly those two bundles; `lib/__tests__/
+  locale-parity.test.ts` holds the directory and the declaration equal
+  and the two key sets identical. A locale is added by adding both.
 - `.github/workflows/gloomr-ghcr.yml` publishes the image under the
   Gloomr organisation.
-
-Still to do: the signature field made read-only (the gateway already
-refuses `Identity/set` on `signature`), and the shipped locales reduced
-to `en` and `de`.
 
 ## Rebasing onto a new upstream release
 

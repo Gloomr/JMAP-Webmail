@@ -14,13 +14,13 @@ import { toast } from '@/stores/toast-store';
 import { useFocusTrap } from '@/hooks/use-focus-trap';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
+// No signature fields: the render gateway owns the signature and refuses
+// `Identity/set` on it, so the form neither shows nor sends one.
 interface IdentityFormData {
   name: string;
   email: string;
   replyTo?: EmailAddress[];
   bcc?: EmailAddress[];
-  textSignature?: string;
-  htmlSignature?: string;
 }
 
 interface IdentityManagerModalProps {
@@ -76,9 +76,7 @@ export function IdentityManagerModal({ isOpen, onClose }: IdentityManagerModalPr
         data.name,
         data.email,
         data.replyTo,
-        data.bcc,
-        data.textSignature,
-        data.htmlSignature
+        data.bcc
       );
 
       addIdentity(newIdentity);
@@ -99,8 +97,6 @@ export function IdentityManagerModal({ isOpen, onClose }: IdentityManagerModalPr
         name: data.name,
         replyTo: data.replyTo,
         bcc: data.bcc,
-        textSignature: data.textSignature,
-        htmlSignature: data.htmlSignature,
       });
 
       updateIdentityLocal(identity.id, data);
