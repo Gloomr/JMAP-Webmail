@@ -611,9 +611,12 @@ export class JMAPClient {
     const browsed = scope.kind === "folder"
       ? known.find((m) => m.id === scope.mailboxId) ?? { id: scope.mailboxId }
       : null;
+    // A draft is never carried along, wherever the search reaches:
+    // `includeTrashJunk` says to search the deleted mail, not to date a
+    // conversation by an unsent reply sitting in Drafts.
     const hidden = scope.kind === "all" && scope.includeTrashJunk
-      ? {}
-      : { trashId: byRole("trash"), junkId: byRole("junk") };
+      ? { draftsId: byRole("drafts") }
+      : { trashId: byRole("trash"), junkId: byRole("junk"), draftsId: byRole("drafts") };
     return siblingsOf(rows, members[1]?.list || [], siblingPolicyFor(browsed, hidden));
   }
 

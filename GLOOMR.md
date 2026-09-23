@@ -55,8 +55,10 @@ latter, under the signed-in user's credentials.
   along as `siblings` (`lib/jmap/thread-siblings.ts`): they count, the
   newest shows, and the thread sorts by it, so a conversation moves up
   when it is answered. Trash, junk and drafts list only their own
-  messages, and a message that sits only in trash or junk stays out of
-  an inbox conversation. The rows themselves are untouched, so paging
+  messages; a message that sits only in trash or junk stays out of an
+  inbox conversation, and an unsent draft never travels with a row at
+  all — it would date the conversation by when somebody last typed, and
+  it cannot be opened from a thread. The rows themselves are untouched, so paging
   anchors, the new-mail chime and the unified merge are as they were.
 - **A row names who the conversation is with.** Senders oldest first, so
   the person who opened it comes first, and every address the reader

@@ -20,6 +20,23 @@ describe('which messages travel with a row', () => {
       .toEqual(['sent', 'both']);
   });
 
+  it('leaves an unsent draft out of the conversation, by keyword or by mailbox', () => {
+    // A draft carried into the row is the newest thing in it, so the
+    // conversation is dated by when somebody last typed; in the thread
+    // it cannot be opened, edited or deleted; and answered, it is a
+    // message of one's own with nobody to answer to.
+    const byKeyword = { ...mail('d1', { inbox: true }), keywords: { $draft: true } } as Email;
+    const byMailbox = mail('d2', { drafts: true });
+    const policy = siblingPolicyFor({ id: 'inbox', role: 'inbox' }, { ...hidden, draftsId: 'drafts' });
+    expect(siblingsOf([row], [byKeyword, byMailbox, sent], policy).map((e) => e.id)).toEqual(['sent']);
+  });
+
+  it('still shows drafts when the drafts folder is what is browsed', () => {
+    const draft = { ...mail('d1', { drafts: true }), keywords: { $draft: true } } as Email;
+    const policy = siblingPolicyFor({ id: 'drafts', role: 'drafts' }, hidden);
+    expect(siblingsOf([row], [draft], policy).map((e) => e.id)).toEqual(['d1']);
+  });
+
   it('never lists a row as its own sibling, and lists a sibling once', () => {
     const policy = siblingPolicyFor({ id: 'inbox', role: 'inbox' }, hidden);
     expect(siblingsOf([row], [row, sent, sent], policy)).toHaveLength(1);
