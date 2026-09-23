@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { Email, ThreadGroup } from "@/lib/jmap/types";
-import { isDraft } from "@/lib/thread-utils";
+import { isDraft, hasRealAttachment } from "@/lib/thread-utils";
 import { hasRichFormatting, needsIframeRendering, buildEmailSanitizeConfig, collapseBlockedImageContainers, collapseQuotedHistory, plainTextToSafeHtml, stripQuotedPreview } from "@/lib/email-sanitization";
 import { SandboxedEmailFrame } from "./sandboxed-email-frame";
 import { transformInlineStyles, transformColorForDarkMode, transformBgColorForDarkMode } from "@/lib/color-transform";
@@ -528,7 +528,7 @@ function EmailCard({
             {isStarred && (
               <Star className="w-4 h-4 fill-amber-400 text-amber-400 flex-shrink-0" />
             )}
-            {email.hasAttachment && (
+            {hasRealAttachment(email) && (
               <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             )}
           </div>

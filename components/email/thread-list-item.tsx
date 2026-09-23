@@ -9,7 +9,7 @@ import { Paperclip, Star, Circle, ChevronRight, ChevronDown, Loader2, MessageSqu
 import { useSettingsStore } from "@/stores/settings-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useEmailStore } from "@/stores/email-store";
-import { getThreadColorTag, isDraft } from "@/lib/thread-utils";
+import { getThreadColorTag, isDraft, hasRealAttachment } from "@/lib/thread-utils";
 import { stripQuotedPreview } from "@/lib/email-sanitization";
 import { ThreadEmailItem } from "./thread-email-item";
 import { useTranslations } from "next-intl";
@@ -164,7 +164,7 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
                   )}
                   {accountChipName && <RowBadge name={accountChipName} testId="account-chip" />}
                   {folderBadgeName && <RowBadge name={folderBadgeName} testId="folder-badge" />}
-                  {email.hasAttachment && (
+                  {hasRealAttachment(email) && (
                     <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
                 </div>

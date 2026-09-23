@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Paperclip, Star, Circle, CheckSquare, Square, Reply, Forward } from "lucide-react";
 import { useEmailStore } from "@/stores/email-store";
-import { emailRowKey } from "@/lib/thread-utils";
+import { emailRowKey, hasRealAttachment } from "@/lib/thread-utils";
 import { stripQuotedPreview } from "@/lib/email-sanitization";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -192,7 +192,7 @@ export function EmailListItem({ email, selected, onClick, onContextMenu }: Email
                   </span>
                 )}
                 <EmailIdentityBadge email={email} identities={identities} compact={true} />
-                {!isExtraCompact && email.hasAttachment && (
+                {!isExtraCompact && hasRealAttachment(email) && (
                   <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
                 )}
               </div>

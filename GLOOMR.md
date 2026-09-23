@@ -85,7 +85,10 @@ latter, under the signed-in user's credentials.
   (`collapseQuotedHistory` in `lib/email-sanitization.ts`), and every
   preview a list or a card shows stops where the signature or the
   quote begins (`stripQuotedPreview`): the server cuts its preview from
-  the text part, which carries both.
+  the text part, which carries both. The paperclip means a file: an
+  image embedded in the body — the letter's mark — earns none, whatever
+  the server's `hasAttachment` says (`hasRealAttachment`, read from the
+  parts the listing now fetches).
 - **Links open away.** `lib/email-sanitization.ts` gives every http(s)
   link in a viewed mail `target="_blank" rel="noopener noreferrer"`.
 - `.github/workflows/gloomr-ghcr.yml` publishes the image under the

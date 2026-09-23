@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Paperclip, Star, Circle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { isDraft } from "@/lib/thread-utils";
+import { isDraft, hasRealAttachment } from "@/lib/thread-utils";
 import { stripQuotedPreview } from "@/lib/email-sanitization";
 
 interface ThreadEmailItemProps {
@@ -86,7 +86,7 @@ export function ThreadEmailItem({
               {isStarred && (
                 <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
               )}
-              {email.hasAttachment && (
+              {hasRealAttachment(email) && (
                 <Paperclip className="w-3 h-3 text-muted-foreground" />
               )}
             </div>

@@ -102,6 +102,21 @@ export function isDraft(email: Email): boolean {
 }
 
 /**
+ * Whether a message carries something a reader would call an
+ * attachment.
+ *
+ * The server's `hasAttachment` says yes for an image embedded in the
+ * body — the mark in a letter's signature — and a paperclip on every
+ * letter says nothing. A part that is inline and has a Content-ID is
+ * part of the body; everything else is an attachment. Without the
+ * parts, the server's flag is all there is.
+ */
+export function hasRealAttachment(email: Email): boolean {
+  if (!email.attachments) return Boolean(email.hasAttachment);
+  return email.attachments.some((part) => !(part.disposition === "inline" && part.cid));
+}
+
+/**
  * What a thread row says about its messages.
  *
  * A draft belongs to the thread — it is listed in `emails`, so it can
@@ -128,7 +143,7 @@ function describeThread(
     hasStarred: described.some((e) => e.keywords?.$flagged),
     hasAnswered: described.some((e) => e.keywords?.["$answered"]),
     hasForwarded: described.some((e) => e.keywords?.["$forwarded"]),
-    hasAttachment: described.some((e) => e.hasAttachment),
+    hasAttachment: described.some((e) => hasRealAttachment(e)),
     emailCount: described.length,
     hasDraft: sent.length < sortedEmails.length,
   };

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { Email } from "@/lib/jmap/types";
 import { hasRichFormatting, needsIframeRendering, buildEmailSanitizeConfig, collapseBlockedImageContainers, collapseQuotedHistory, plainTextToSafeHtml } from "@/lib/email-sanitization";
+import { hasRealAttachment } from "@/lib/thread-utils";
 import { SandboxedEmailFrame } from "./sandboxed-email-frame";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -809,7 +810,7 @@ export function EmailViewer({
                     minute: '2-digit'
                   })}
                 </span>
-                {email.hasAttachment && (
+                {hasRealAttachment(email) && (
                   <span className="flex items-center gap-1 lg:gap-1.5 whitespace-nowrap">
                     <Paperclip className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                     <span className="hidden lg:inline">{t('attachments')}</span>

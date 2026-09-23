@@ -9,6 +9,7 @@ import {
   conversationChanged,
   withThreadSiblings,
   siblingsFor,
+  hasRealAttachment,
 } from '../thread-utils';
 import type { Email, ThreadGroup } from '../jmap/types';
 
@@ -290,6 +291,33 @@ describe('a draft in a thread', () => {
     expect(group.hasDraft).toBe(false);
     expect(mergeThreadEmails(group, [draft]).hasDraft).toBe(true);
     expect(mergeThreadEmails(group, [draft]).emailCount).toBe(2);
+  });
+});
+
+describe('what earns a paperclip', () => {
+  const mark = { partId: '2', blobId: 'b', size: 9908, name: 'gloomr.png', type: 'image/png', cid: 'gloomr-mark', disposition: 'inline' };
+  const pdf = { partId: '3', blobId: 'c', size: 1, name: 'offer.pdf', type: 'application/pdf', disposition: 'attachment' };
+
+  it('not an image embedded in the body, whatever the server says', () => {
+    // The server flags the letter's mark as an attachment; a paperclip
+    // on every letter says nothing.
+    expect(hasRealAttachment(makeEmail({ hasAttachment: true, attachments: [mark] }))).toBe(false);
+  });
+
+  it('a file somebody attached', () => {
+    expect(hasRealAttachment(makeEmail({ hasAttachment: true, attachments: [mark, pdf] }))).toBe(true);
+    // An image without a Content-ID is a file, not part of the body.
+    expect(hasRealAttachment(makeEmail({ attachments: [{ ...mark, cid: undefined }] }))).toBe(true);
+  });
+
+  it('falls back to the server flag when the parts are not there', () => {
+    expect(hasRealAttachment(makeEmail({ hasAttachment: true }))).toBe(true);
+    expect(hasRealAttachment(makeEmail({ hasAttachment: false }))).toBe(false);
+  });
+
+  it('is what a thread row reads', () => {
+    const [group] = groupEmailsByThread([makeEmail({ hasAttachment: true, attachments: [mark] })]);
+    expect(group.hasAttachment).toBe(false);
   });
 });
 

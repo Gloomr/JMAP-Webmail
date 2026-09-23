@@ -114,6 +114,10 @@ const EMAIL_LIST_PROPERTIES = [
   "subject",
   "preview",
   "hasAttachment",
+  // The parts themselves, not only the flag: the server counts an
+  // image embedded in the body as an attachment, and the paperclip
+  // must not.
+  "attachments",
 ] as const;
 
 /**
