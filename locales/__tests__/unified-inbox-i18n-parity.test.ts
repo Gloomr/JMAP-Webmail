@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-const LOCALES = ['en', 'fr', 'ja', 'es', 'it', 'de', 'nl', 'pt', 'ru', 'uk', 'pl'] as const;
+import { locales as LOCALES } from '@/i18n/routing';
 
 // The exact keys the unified-inbox components consume (T8/T10/T11/T12/T13).
 const KEYS = [
@@ -44,8 +43,8 @@ function resolve(messages: Record<string, unknown>, path: string): unknown {
 }
 
 describe('unified inbox i18n consolidation guard', () => {
-  it('tracks exactly 11 locales', () => {
-    expect(LOCALES).toHaveLength(11);
+  it('tracks the shipped locales', () => {
+    expect([...LOCALES]).toEqual(['en', 'de']);
   });
 
   it.each(LOCALES)('locale %s defines every unified inbox key as a non-empty string', (locale) => {

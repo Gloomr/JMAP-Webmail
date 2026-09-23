@@ -8,15 +8,6 @@ import { Select } from '@/components/settings/settings-section';
 const NATIVE_LANGUAGE_LABELS: Record<Locale, string> = {
   en: 'English',
   de: 'Deutsch',
-  es: 'Español',
-  fr: 'Français',
-  it: 'Italiano',
-  ja: '日本語',
-  nl: 'Nederlands',
-  pl: 'Polski',
-  pt: 'Português',
-  ru: 'Русский',
-  uk: 'Українська',
 };
 
 export function LanguageSwitcher({ className }: { className?: string }) {

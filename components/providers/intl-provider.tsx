@@ -6,29 +6,13 @@ import { useLocaleStore } from '@/stores/locale-store';
 import type { Locale } from '@/i18n/routing';
 import enMessages from '@/locales/en/common.json';
 import deMessages from '@/locales/de/common.json';
-import esMessages from '@/locales/es/common.json';
-import frMessages from '@/locales/fr/common.json';
-import itMessages from '@/locales/it/common.json';
-import jaMessages from '@/locales/ja/common.json';
-import nlMessages from '@/locales/nl/common.json';
-import plMessages from '@/locales/pl/common.json';
-import ptMessages from '@/locales/pt/common.json';
-import ruMessages from '@/locales/ru/common.json';
-import ukMessages from '@/locales/uk/common.json';
 
-// Pre-loaded translations (loaded at build time, not runtime)
+// Pre-loaded translations (loaded at build time, not runtime). The record
+// is total over `Locale`, so a locale declared in `i18n/routing.ts`
+// without a bundle here does not compile.
 const ALL_MESSAGES: Record<Locale, typeof enMessages> = {
   en: enMessages,
   de: deMessages,
-  es: esMessages,
-  fr: frMessages,
-  it: itMessages,
-  ja: jaMessages,
-  nl: nlMessages,
-  pl: plMessages,
-  pt: ptMessages,
-  ru: ruMessages,
-  uk: ukMessages,
 };
 
 interface IntlProviderProps {

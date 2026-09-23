@@ -1,16 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { routing } from '@/i18n/routing';
 import en from '@/locales/en/common.json';
 import de from '@/locales/de/common.json';
-import es from '@/locales/es/common.json';
-import fr from '@/locales/fr/common.json';
-import itLocale from '@/locales/it/common.json';
-import ja from '@/locales/ja/common.json';
-import nl from '@/locales/nl/common.json';
-import pl from '@/locales/pl/common.json';
-import pt from '@/locales/pt/common.json';
-import ru from '@/locales/ru/common.json';
-import uk from '@/locales/uk/common.json';
 
 type Json = Record<string, unknown>;
 
@@ -23,12 +16,21 @@ function leafKeys(obj: Json, prefix = ''): string[] {
   });
 }
 
-const BUNDLES: Record<string, Json> = { en, de, es, fr, it: itLocale, ja, nl, pl, pt, ru, uk };
+const BUNDLES: Record<string, Json> = { en, de };
 
 describe('locale parity', () => {
-  it('routing declares 11 locales including pl', () => {
-    expect(routing.locales).toContain('pl');
-    expect(routing.locales).toHaveLength(11);
+  it('routing declares exactly the two shipped locales', () => {
+    expect([...routing.locales]).toEqual(['en', 'de']);
+  });
+
+  it('the locale directories are the declared locales, no more and no fewer', () => {
+    // A bundle nobody can select is dead weight in the image; a declared
+    // locale without a bundle is a 404 on the first page load.
+    const dirs = readdirSync(join(process.cwd(), 'locales'), { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name !== '__tests__')
+      .map((d) => d.name)
+      .sort();
+    expect(dirs).toEqual([...routing.locales].sort());
   });
 
   it('every declared locale has a message bundle', () => {
@@ -44,14 +46,6 @@ describe('locale parity', () => {
       const missing = [...enKeys].filter((k) => !keys.has(k)).sort();
       const extra = [...keys].filter((k) => !enKeys.has(k)).sort();
       expect({ code, missing, extra }).toEqual({ code, missing: [], extra: [] });
-    });
-  }
-
-  for (const [code, msgs] of Object.entries(BUNDLES)) {
-    it(`${code} defines Polish language labels`, () => {
-      const lang = msgs.language as Json;
-      expect(lang.polish).toBeTruthy();
-      expect(lang.switch_to_polish).toBeTruthy();
     });
   }
 });

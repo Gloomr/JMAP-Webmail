@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-const LOCALES = ['en', 'fr', 'ja', 'es', 'it', 'de', 'nl', 'pt', 'ru', 'uk', 'pl'] as const;
+import { locales as LOCALES } from '@/i18n/routing';
 
 // The OAuth discovery-failure banner renders login.retry; a missing key threw
 // MISSING_MESSAGE on the login page.

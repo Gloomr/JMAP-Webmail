@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-const LOCALES = ['en', 'fr', 'ja', 'es', 'it', 'de', 'nl', 'pt', 'ru', 'uk', 'pl'] as const;
+import { locales as LOCALES } from '@/i18n/routing';
 const SCOPE_KEYS = ['scope_everywhere', 'scope_this_folder', 'include_trash_junk'] as const;
 
 function loadSearch(locale: string): Record<string, unknown> {
@@ -12,8 +11,8 @@ function loadSearch(locale: string): Record<string, unknown> {
 }
 
 describe('search scope i18n parity', () => {
-  it('tracks exactly 11 locales', () => {
-    expect(LOCALES).toHaveLength(11);
+  it('tracks the shipped locales', () => {
+    expect([...LOCALES]).toEqual(['en', 'de']);
   });
 
   it.each(LOCALES)('locale %s defines every scope key as a non-empty string', (locale) => {

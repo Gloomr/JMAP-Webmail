@@ -21,14 +21,14 @@ describe('IntlProvider first-visit locale adoption', () => {
     localStorage.clear();
 
     render(
-      <IntlProvider locale="fr" messages={{}}>
+      <IntlProvider locale="de" messages={{}}>
         <LocaleProbe />
       </IntlProvider>
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('active-locale').textContent).toBe('fr');
+      expect(screen.getByTestId('active-locale').textContent).toBe('de');
     });
-    expect(useLocaleStore.getState().locale).toBe('fr');
+    expect(useLocaleStore.getState().locale).toBe('de');
   });
 });
