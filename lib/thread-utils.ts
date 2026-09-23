@@ -129,6 +129,27 @@ export function sortThreadGroups(groups: ThreadGroup[]): ThreadGroup[] {
 }
 
 /**
+ * Whether a re-fetched conversation differs from the one on screen in a way
+ * the screen would show: a message arrived or went, or one changed its
+ * flags. Bodies are not compared — a message does not change its text.
+ *
+ * A background refresh replaces the rendered list only when this says so,
+ * because a new array resets what the reader has expanded and scrolled to.
+ */
+export function conversationChanged(prev: Email[], next: Email[]): boolean {
+  return (
+    prev.length !== next.length ||
+    next.some((email, i) => {
+      const curr = prev[i];
+      return (
+        curr.id !== email.id ||
+        JSON.stringify(curr.keywords ?? {}) !== JSON.stringify(email.keywords ?? {})
+      );
+    })
+  );
+}
+
+/**
  * Extracts unique participant names from a list of emails.
  * Includes both senders and recipients, limited to avoid UI overflow.
  */

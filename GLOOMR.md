@@ -41,10 +41,13 @@ latter, under the signed-in user's credentials.
   prose, and the gateway renders the letter from it. A reply carries the
   thread as `{ attribution, text }`, which becomes a
   `<blockquote type="cite">` after the letter, outside its markup.
-- **A conversation is fetched whole.** `getThreadEmails` asks for bodies,
-  attachments and the threading headers, so the conversation view renders
-  a message rather than its preview and a reply from it carries
-  `In-Reply-To` and `References`.
+- **A conversation is fetched whole, and follows what happens next.**
+  `getThreadEmails` asks for bodies, attachments and the threading
+  headers, so the conversation view renders a message rather than its
+  preview and a reply from it carries `In-Reply-To` and `References`.
+  The open conversation is fetched again after a send and on every push,
+  and replaced on screen only when a message or a flag differs
+  (`conversationChanged` in `lib/thread-utils.ts`).
 - **The application is light only.** `stores/theme-store.ts` applies the
   light theme and the appearance settings offer no choice.
 - **Links open away.** `lib/email-sanitization.ts` gives every http(s)

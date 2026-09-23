@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -20,7 +20,7 @@ import { useContactStore } from "@/stores/contact-store";
 import { useDeviceDetection } from "@/hooks/use-media-query";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { debug } from "@/lib/debug";
-import { findEmailRow, isSameRow, owningAccountId, groupEmailsByThread } from "@/lib/thread-utils";
+import { findEmailRow, isSameRow, owningAccountId, groupEmailsByThread, conversationChanged } from "@/lib/thread-utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { cn } from "@/lib/utils";
 import {
@@ -98,6 +98,7 @@ export default function Home() {
     toggleAdvancedSearch,
     advancedSearch,
     fetchTagCounts,
+    lastPushUpdate,
   } = useEmailStore();
 
   const contactStore = useContactStore();
@@ -384,6 +385,37 @@ export default function Home() {
     }
   }, [isMobile, isTablet, setTabletListVisible]);
 
+  // The conversation on the right is loaded when it is opened and knows
+  // nothing of what happens after — a reply sent from it, a message that
+  // arrives while it is open. Fetched again here, and put on screen only
+  // when a message or a flag differs: a new array folds what the reader
+  // had expanded, and a fetch that failed leaves the screen as it was.
+  const refreshOpenConversation = useCallback(async () => {
+    if (!client || !conversationThread) return;
+    try {
+      const fresh = await client.getThreadEmails(
+        conversationThread.threadId,
+        conversationThread.latestEmail.accountId,
+      );
+      if (fresh.length === 0 || !conversationChanged(conversationEmails, fresh)) return;
+      const [group] = groupEmailsByThread(fresh);
+      setConversationEmails(fresh);
+      if (group) setConversationThread(group);
+    } catch {
+      // What is on screen stays; the next push tries again.
+    }
+  }, [client, conversationThread, conversationEmails]);
+
+  // Read through a ref so a push runs the refresh once, rather than once
+  // more each time the refresh itself changes the conversation.
+  const refreshOpenConversationRef = useRef(refreshOpenConversation);
+  refreshOpenConversationRef.current = refreshOpenConversation;
+
+  useEffect(() => {
+    if (!lastPushUpdate) return;
+    void refreshOpenConversationRef.current();
+  }, [lastPushUpdate]);
+
   const handleEmailSend = async (data: {
     to: string[];
     cc: string[];
@@ -407,6 +439,7 @@ export default function Home() {
     try {
       // Silent refresh — no loading indicator flash
       await refreshCurrentMailbox(client);
+      await refreshOpenConversation();
     } catch {
       // Best-effort: the send already succeeded.
     }
@@ -659,6 +692,7 @@ export default function Home() {
 
     // Silent refresh to show the sent reply
     await refreshCurrentMailbox(client);
+    await refreshOpenConversation();
   };
 
   // Show loading state while checking auth

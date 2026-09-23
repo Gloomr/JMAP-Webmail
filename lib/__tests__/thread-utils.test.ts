@@ -6,6 +6,7 @@ import {
   mergeThreadEmails,
   getEmailColorTag,
   getThreadColorTag,
+  conversationChanged,
 } from '../thread-utils';
 import type { Email, ThreadGroup } from '../jmap/types';
 
@@ -20,6 +21,32 @@ const makeEmail = (overrides: Partial<Email> = {}): Email => ({
   subject: 'Test Subject',
   hasAttachment: false,
   ...overrides,
+});
+
+describe('conversationChanged', () => {
+  const a = makeEmail({ id: 'a' });
+  const b = makeEmail({ id: 'b', receivedAt: '2024-01-15T11:00:00Z' });
+
+  it('is quiet when the same messages come back with the same flags', () => {
+    // A fresh fetch is a new array; what matters is whether the screen
+    // would change, and here it would not.
+    expect(conversationChanged([b, a], [{ ...b }, { ...a }])).toBe(false);
+  });
+
+  it('notices a message that arrived, and one that went', () => {
+    const c = makeEmail({ id: 'c', receivedAt: '2024-01-15T12:00:00Z' });
+    expect(conversationChanged([b, a], [c, b, a])).toBe(true);
+    expect(conversationChanged([b, a], [a])).toBe(true);
+  });
+
+  it('notices a flag — the reply arrow is one', () => {
+    const answered = { ...a, keywords: { $seen: true, $answered: true } };
+    expect(conversationChanged([b, a], [b, answered])).toBe(true);
+  });
+
+  it('treats absent and empty keywords alike', () => {
+    expect(conversationChanged([{ ...a, keywords: undefined as unknown as Record<string, boolean> }], [{ ...a, keywords: {} }])).toBe(false);
+  });
 });
 
 describe('groupEmailsByThread', () => {
