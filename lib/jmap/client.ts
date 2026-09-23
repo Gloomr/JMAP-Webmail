@@ -115,6 +115,27 @@ const EMAIL_LIST_PROPERTIES = [
   "hasAttachment",
 ] as const;
 
+/**
+ * Everything a message is shown or answered from: its bodies, its
+ * attachments, and the two headers a reply threads on. A listing row
+ * is what a table needs; this is the message.
+ */
+const EMAIL_FULL_PROPERTIES = [
+  "id", "threadId", "mailboxIds", "keywords", "size",
+  "receivedAt", "sentAt", "from", "to", "cc", "bcc", "replyTo",
+  "subject", "preview", "textBody", "htmlBody", "bodyValues",
+  "hasAttachment", "attachments", "messageId", "inReplyTo",
+  "references", "headers",
+] as const;
+
+/** Has Email/get inline every body part of a full fetch. */
+const EMAIL_BODY_FETCH = {
+  fetchTextBodyValues: true,
+  fetchHTMLBodyValues: true,
+  fetchAllBodyValues: true,
+  maxBodyValueBytes: 256000,
+} as const;
+
 const CALENDAR_EVENT_PROPERTIES = [
   "id",
   "uid",
@@ -729,17 +750,8 @@ export class JMAPClient {
         ["Email/get", {
           accountId: targetAccountId,
           ids: [emailId],
-          properties: [
-            "id", "threadId", "mailboxIds", "keywords", "size",
-            "receivedAt", "sentAt", "from", "to", "cc", "bcc", "replyTo",
-            "subject", "preview", "textBody", "htmlBody", "bodyValues",
-            "hasAttachment", "attachments", "messageId", "inReplyTo",
-            "references", "headers",
-          ],
-          fetchTextBodyValues: true,
-          fetchHTMLBodyValues: true,
-          fetchAllBodyValues: true,
-          maxBodyValueBytes: 256000,
+          properties: [...EMAIL_FULL_PROPERTIES],
+          ...EMAIL_BODY_FETCH,
         }, "0"],
       ]);
 
@@ -1190,15 +1202,22 @@ export class JMAPClient {
         ["Email/get", {
           accountId: targetAccountId,
           ids: thread.emailIds,
-          properties: [...EMAIL_LIST_PROPERTIES],
+          // The conversation view shows these rows and answers from them.
+          // A listing row has no body and no messageId: shown, it is its
+          // preview; answered, the reply threads on nothing.
+          properties: [...EMAIL_FULL_PROPERTIES],
+          ...EMAIL_BODY_FETCH,
         }, "0"],
       ]);
 
       if (response.methodResponses?.[0]?.[0] === "Email/get") {
-        const emails = response.methodResponses[0][1].list || [];
+        const emails: Email[] = response.methodResponses[0][1].list || [];
 
         if (accountId && accountId !== this.accountId) {
           namespaceMailboxIds(emails, accountId);
+        }
+        for (const email of emails) {
+          if (email.headers) await this.parseEmailHeaders(email);
         }
 
         return emails.sort((a: Email, b: Email) =>
