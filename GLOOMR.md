@@ -19,17 +19,42 @@ from `main`, not from `gloomr`.
 
 ## What we changed
 
-Nothing yet beyond this file and `.github/workflows/gloomr-ghcr.yml`.
+Everything sits on `gloomr` and assumes the GLOOMR mail gateway between
+this client and Stalwart — the same origin serves `/jmap/*` and
+`/render/*`, and `lib/jmap/client.ts` exposes `gatewayFetch` for the
+latter, under the signed-in user's credentials.
 
-Planned, each behind a flag so that an unconfigured build behaves
-exactly like upstream:
+- **The composer writes inside the letter.**
+  `components/email/letterhead-editor.tsx` fetches the frame — wordmark,
+  headline, signature card, footer — from `POST /render/chrome` and
+  drops it into the page as it is; the one writable cell is a
+  `contentEditable` portaled into the frame's slot. The toolbar offers
+  exactly what the document can hold, and a switch on its right draws
+  the frame in the light or the dark palette: the mail carries both, and
+  the reader's device chooses. A gateway that cannot be reached costs
+  the picture, not the ability to write — the letterhead is applied on
+  send, from the prose.
+- **The message travels as a document.** `lib/letter-document.ts` reads
+  the editor into a tree of headings, paragraphs, lists, quotes and
+  links; the composer attaches it as
+  `application/vnd.gloomr.richtext+json` (`.gloomr-body.json`) beside the
+  prose, and the gateway renders the letter from it. A reply carries the
+  thread as `{ attribution, text }`, which becomes a
+  `<blockquote type="cite">` after the letter, outside its markup.
+- **A conversation is fetched whole.** `getThreadEmails` asks for bodies,
+  attachments and the threading headers, so the conversation view renders
+  a message rather than its preview and a reply from it carries
+  `In-Reply-To` and `References`.
+- **The application is light only.** `stores/theme-store.ts` applies the
+  light theme and the appearance settings offer no choice.
+- **Links open away.** `lib/email-sanitization.ts` gives every http(s)
+  link in a viewed mail `target="_blank" rel="noopener noreferrer"`.
+- `.github/workflows/gloomr-ghcr.yml` publishes the image under the
+  Gloomr organisation.
 
-- `MANAGED_SIGNATURES` — the signature field becomes read-only with a
-  preview, and local template management is hidden.
-- `COMPOSE_RENDER_URL` — the composer renders the letterhead, signature
-  and footer around the message body, fetched from that URL and not
-  editable in the composer.
-- The shipped locales are reduced to `en` and `de`.
+Still to do: the signature field made read-only (the gateway already
+refuses `Identity/set` on `signature`), and the shipped locales reduced
+to `en` and `de`.
 
 ## Rebasing onto a new upstream release
 

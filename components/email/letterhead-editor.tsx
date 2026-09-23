@@ -55,17 +55,20 @@ interface LetterheadEditorProps {
   linkPrompt?: string;
   /** Shown when the letter cannot be drawn, above the writing area. */
   unavailableNote?: string;
-  /**
-   * Which palette the frame is drawn in — one, with no media query.
-   *
-   * A sent mail carries both and lets the reader's device choose. The
-   * frame sits inside this application, which has chosen already, so it
-   * asks for that palette and gets its text set in the matching ink.
-   * Left to the device, a dark machine painted the card dark under text
-   * typed in the light ink: about 1.6:1.
-   */
-  palette?: 'light' | 'dark';
+  /** What the palette switch calls its two sides, and the line beside it. */
+  paletteLabels?: PaletteLabels;
   className?: string;
+}
+
+/** The two palettes a sent mail carries; the reader's device picks one. */
+type Palette = 'light' | 'dark';
+const PALETTES: readonly Palette[] = ['light', 'dark'];
+
+interface PaletteLabels {
+  light: string;
+  dark: string;
+  /** Says that the mail goes out light and the reader's device decides. */
+  note: string;
 }
 
 /** How long typing settles before the document is read out of the DOM. */
@@ -115,7 +118,7 @@ export function LetterheadEditor({
   linkLabel,
   linkPrompt,
   unavailableNote,
-  palette = 'light',
+  paletteLabels,
   className,
 }: LetterheadEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -123,6 +126,14 @@ export function LetterheadEditor({
   const [chrome, setChrome] = useState<Chrome | null>(null);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [failed, setFailed] = useState(false);
+
+  // Which palette the frame is drawn in — one at a time, with no media
+  // query. A sent mail carries both and lets the reader's device choose;
+  // the frame here shows one of them and sets the typed text in the
+  // matching ink. Left to the device, a dark machine painted the card
+  // dark under text typed in the light ink: about 1.6:1. The switch in
+  // the toolbar is how a sender sees the other half of what they send.
+  const [palette, setPalette] = useState<Palette>('light');
 
   // Read through a ref rather than listed as a dependency. The composer
   // passes an inline function, which is a new function on every render
@@ -297,6 +308,8 @@ export function LetterheadEditor({
     window.open(anchor.href, '_blank', 'noopener,noreferrer');
   }, [slot]);
 
+  const labels: PaletteLabels = paletteLabels ?? { light: 'Light', dark: 'Dark', note: '' };
+
   return (
     <div className={cn('flex min-h-0 flex-col', className)} onClickCapture={openLinksAway}>
       <div className="flex flex-wrap items-center gap-1 border-b px-2 py-1.5">
@@ -326,6 +339,34 @@ export function LetterheadEditor({
         >
           {linkLabel ?? 'Link'}
         </button>
+        <div className="ml-auto flex items-center gap-2 pl-2">
+          {labels.note && (
+            <span className="hidden text-[11px] leading-tight text-muted-foreground md:inline">
+              {labels.note}
+            </span>
+          )}
+          <div role="group" className="flex overflow-hidden rounded border text-[11px] uppercase tracking-wide">
+            {PALETTES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={palette === option}
+                // Keep the selection: the frame is redrawn around it, and
+                // the document is written back into the new cell.
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => setPalette(option)}
+                className={cn(
+                  'px-2 py-1 transition-colors',
+                  palette === option
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {labels[option]}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
