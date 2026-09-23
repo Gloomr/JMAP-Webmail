@@ -5,6 +5,8 @@ import { Email } from "@/lib/jmap/types";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Paperclip, Star, Circle } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { isDraft } from "@/lib/thread-utils";
 
 interface ThreadEmailItemProps {
   email: Email;
@@ -24,6 +26,7 @@ export function ThreadEmailItem({
   const isUnread = !email.keywords?.$seen;
   const isStarred = email.keywords?.$flagged;
   const sender = email.from?.[0];
+  const t = useTranslations('email_list');
 
   const handleContextMenu = (e: React.MouseEvent) => {
     onContextMenu?.(e, email);
@@ -70,7 +73,11 @@ export function ThreadEmailItem({
                 ? "font-semibold text-foreground"
                 : "font-medium text-muted-foreground"
             )}>
-              {sender?.name || sender?.email?.split('@')[0] || "Unknown"}
+              {isDraft(email) ? (
+                <span className="text-red-600 dark:text-red-400">{t('draft')}</span>
+              ) : (
+                sender?.name || sender?.email?.split('@')[0] || "Unknown"
+              )}
             </span>
 
             {/* Indicators */}

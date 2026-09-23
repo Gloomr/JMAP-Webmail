@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { Email, ThreadGroup } from "@/lib/jmap/types";
+import { isDraft } from "@/lib/thread-utils";
 import { hasRichFormatting, needsIframeRendering, buildEmailSanitizeConfig, collapseBlockedImageContainers, collapseQuotedHistory, plainTextToSafeHtml } from "@/lib/email-sanitization";
 import { SandboxedEmailFrame } from "./sandboxed-email-frame";
 import { transformInlineStyles, transformColorForDarkMode, transformBgColorForDarkMode } from "@/lib/color-transform";
@@ -27,6 +28,7 @@ import {
   FileAudio,
   FileArchive,
   File,
+  PenLine,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -42,6 +44,8 @@ interface ThreadConversationViewProps {
   onReply?: (email: Email) => void;
   onReplyAll?: (email: Email) => void;
   onForward?: (email: Email) => void;
+  /** Opens a draft of this conversation in the composer, to go on writing it. */
+  onEditDraft?: (email: Email) => void;
   onDownloadAttachment?: (blobId: string, name: string, type?: string) => void;
   onMarkAsRead?: (emailId: string, read: boolean) => void;
 }
@@ -78,6 +82,7 @@ export function ThreadConversationView({
   onReply,
   onReplyAll,
   onForward,
+  onEditDraft,
   onDownloadAttachment,
   onMarkAsRead,
 }: ThreadConversationViewProps) {
@@ -95,8 +100,10 @@ export function ThreadConversationView({
     if (emails.length > 0) {
       const idsToExpand = new Set<string>();
 
-      // Always expand most recent
-      idsToExpand.add(emails[0].id);
+      // Always expand the most recent message — a draft is opened in the
+      // composer, not here, so it is not the one.
+      const newest = emails.find((email) => !isDraft(email)) ?? emails[0];
+      idsToExpand.add(newest.id);
 
       // Also expand all unread emails
       emails.forEach(email => {
@@ -157,7 +164,7 @@ export function ThreadConversationView({
             {thread.latestEmail.subject || t("email_viewer.no_subject")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {t("threads.messages_other", { count: emails.length })}
+            {t("threads.messages_other", { count: emails.filter((email) => !isDraft(email)).length })}
           </p>
         </div>
       </div>
@@ -166,6 +173,17 @@ export function ThreadConversationView({
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 space-y-3">
           {emails.map((email, index) => {
+            // A reply begun here and not sent: shown where it will go,
+            // opened in the composer rather than read.
+            if (isDraft(email)) {
+              return (
+                <DraftCard
+                  key={email.id}
+                  email={email}
+                  onEdit={onEditDraft ? () => onEditDraft(email) : undefined}
+                />
+              );
+            }
             const senderEmail = email.from?.[0]?.email?.toLowerCase();
             const senderIsTrusted = senderEmail ? isSenderTrusted(senderEmail) : false;
             return (
@@ -191,6 +209,54 @@ export function ThreadConversationView({
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A reply begun in this conversation and not sent.
+ *
+ * Shown where it will go — under the message it answers, dated by when
+ * it was last saved — and opened in the composer on a click, since a
+ * draft is written, not read. Nothing else is offered on it: there is
+ * nobody to answer and nothing to forward until it is a message.
+ */
+function DraftCard({ email, onEdit }: { email: Email; onEdit?: () => void }) {
+  const t = useTranslations();
+  const recipients = [...(email.to ?? []), ...(email.cc ?? [])]
+    .map((r) => r.name || r.email)
+    .filter(Boolean)
+    .join(", ");
+  const words = email.preview?.trim();
+
+  return (
+    <div className="border border-dashed border-border rounded-lg bg-muted/20 overflow-hidden">
+      <button
+        type="button"
+        onClick={onEdit}
+        disabled={!onEdit}
+        className={cn(
+          "w-full flex items-start gap-3 p-4 text-left transition-colors",
+          onEdit && "hover:bg-muted/50",
+        )}
+      >
+        <Avatar name={email.from?.[0]?.name} email={email.from?.[0]?.email} size="md" className="flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="font-medium text-red-600 dark:text-red-400">{t("email_list.draft")}</span>
+            <span className="text-sm text-muted-foreground">{formatDate(email.receivedAt)}</span>
+          </div>
+          {recipients && (
+            <div className="text-sm text-muted-foreground truncate">
+              {t("email_viewer.to")}: {recipients}
+            </div>
+          )}
+          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+            {words || t("email_viewer.no_subject")}
+          </p>
+        </div>
+        {onEdit && <PenLine className="w-5 h-5 text-muted-foreground flex-shrink-0 p-0.5" />}
+      </button>
     </div>
   );
 }

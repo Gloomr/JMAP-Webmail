@@ -56,18 +56,25 @@ latter, under the signed-in user's credentials.
   newest shows, and the thread sorts by it, so a conversation moves up
   when it is answered. Trash, junk and drafts list only their own
   messages; a message that sits only in trash or junk stays out of an
-  inbox conversation, and an unsent draft is not part of a conversation
-  at all — not in the row, not in its expansion, not in the thread view
-  (`getThreadEmails` leaves it out) — because it would date the
-  conversation by when somebody last typed and cannot be opened from a
-  thread; the Drafts listing is where it is found. Each message in the
-  thread view names who it went to. The rows themselves are untouched, so paging
+  inbox conversation. Each message in the thread view names who it went
+  to. The rows themselves are untouched, so paging
   anchors, the new-mail chime and the unified merge are as they were.
 - **A row names who the conversation is with.** Senders oldest first, so
   the person who opened it comes first, and every address the reader
   sends from collapses into one "me" — a thread they just answered is
   not headed by their own signature. Replying to a message of their own
   writes to the people it was sent to, not back to themselves.
+- **A draft is kept, and found where it belongs.** Closing the composer
+  saves what was written; only "discard" throws it away, after asking.
+  A draft travels with its conversation as a draft: listed in the row's
+  expansion and shown in the thread view as a card in red
+  (`DraftCard`), but not counted, not dating the conversation, not a
+  participant (`describeThread` in `lib/thread-utils.ts`). A click on
+  it — there, in the row, or in the Drafts folder — opens the composer
+  seeded from it (`DraftSeed`), with the letter document read back from
+  the attached `.gloomr-body.json` so headings and lists return, and
+  the first save replaces the draft rather than adding a second one.
+  Sending it takes it out of Drafts.
 - **The application is light only.** `stores/theme-store.ts` applies the
   light theme, the appearance settings offer no choice, and the frame a
   table-shaped mail renders in pins `color-scheme: light` so a dark

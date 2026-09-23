@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { Sidebar } from "@/components/layout/sidebar";
 import { EmailList } from "@/components/email/email-list";
 import { EmailViewer } from "@/components/email/email-viewer";
-import { EmailComposer } from "@/components/email/email-composer";
+import { EmailComposer, type DraftSeed } from "@/components/email/email-composer";
+import { parseDocument, LETTER_DOCUMENT_NAME, LETTER_DOCUMENT_TYPE } from "@/lib/letter-document";
 import { ThreadConversationView } from "@/components/email/thread-conversation-view";
 import { MobileHeader, MobileViewerHeader } from "@/components/layout/mobile-header";
 import { ThreadGroup, Email } from "@/lib/jmap/types";
@@ -45,6 +46,8 @@ export default function Home() {
   const [showComposer, setShowComposer] = useState(false);
   const [composerMode, setComposerMode] = useState<'compose' | 'reply' | 'replyAll' | 'forward'>('compose');
   const [composerDraftText, setComposerDraftText] = useState("");
+  // A saved draft being taken up again; null while the composer writes a new message.
+  const [editingDraft, setEditingDraft] = useState<DraftSeed | null>(null);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   // Mobile conversation view state
@@ -445,6 +448,53 @@ export default function Home() {
     }
   };
 
+  /**
+   * Takes a saved draft up again in the composer.
+   *
+   * The draft is fetched whole — a listing row has no body — and the
+   * letter document the composer attached is read back from its blob,
+   * so headings and lists return as they were saved. A draft whose
+   * document is missing or unreadable opens from its prose instead.
+   */
+  const handleEditDraft = async (ref: { id: string; accountId?: string }) => {
+    if (!client) return;
+    const accountId = owningAccountId(ref as Email, mailboxes, selectedMailbox);
+    const full = await client.getEmail(ref.id, accountId);
+    if (!full) return;
+
+    const tree = (full.attachments ?? []).find(
+      (part) => part.type === LETTER_DOCUMENT_TYPE || part.name === LETTER_DOCUMENT_NAME,
+    );
+    let document: DraftSeed['document'] = null;
+    if (tree?.blobId) {
+      try {
+        document = parseDocument(await client.fetchBlobText(tree.blobId, tree.name, tree.type));
+      } catch {
+        document = null;
+      }
+    }
+
+    const addresses = (list?: { email: string }[]) => (list ?? []).map((r) => r.email).filter(Boolean);
+    setEditingDraft({
+      id: full.id,
+      accountId: full.accountId,
+      from: full.from,
+      to: addresses(full.to),
+      cc: addresses(full.cc),
+      bcc: addresses(full.bcc),
+      subject: full.subject ?? '',
+      body: full.bodyValues?.[full.textBody?.[0]?.partId ?? '']?.value ?? full.preview ?? '',
+      document,
+      // A reply's draft carries the headers that thread it; the parent
+      // itself is not looked up, so it is not marked answered on send.
+      replyContext: full.inReplyTo?.length
+        ? { messageId: full.inReplyTo[0], references: full.references, accountId: full.accountId }
+        : undefined,
+    });
+    setComposerMode('compose');
+    setShowComposer(true);
+  };
+
   const handleDiscardDraft = async (draftId: string) => {
     if (!client) return;
 
@@ -452,6 +502,14 @@ export default function Home() {
       await client.deleteEmail(draftId);
     } catch {
       return;
+    }
+    // The draft stood in a row and in the open conversation; both are
+    // told at once rather than on the next poll.
+    try {
+      await refreshCurrentMailbox(client);
+      await refreshOpenConversation();
+    } catch {
+      // Best-effort: the draft is gone either way.
     }
   };
 
@@ -711,8 +769,15 @@ export default function Home() {
   const currentMailboxName = mailboxes.find(m => m.id === selectedMailbox)?.name || "Inbox";
 
   // Handle email selection with mobile view switching
-  const handleEmailSelect = async (email: { id: string; accountId?: string }) => {
+  const handleEmailSelect = async (email: { id: string; accountId?: string; keywords?: Record<string, boolean> }) => {
     if (!client || !email) return;
+
+    // A draft is written, not read: it opens in the composer, from the
+    // Drafts folder and from the thread it answers alike.
+    if (email.keywords?.$draft) {
+      void handleEditDraft(email);
+      return;
+    }
 
     // Set loading state immediately (keep current email visible)
     setLoadingEmail(true);
@@ -994,6 +1059,7 @@ export default function Home() {
                 onReply={handleConversationReply}
                 onReplyAll={handleConversationReplyAll}
                 onForward={handleConversationForward}
+                onEditDraft={handleEditDraft}
                 onDownloadAttachment={handleDownloadAttachment}
                 onMarkAsRead={async (emailId, read) => {
                   if (client) {
@@ -1092,6 +1158,10 @@ export default function Home() {
                 }}
               >
                 <EmailComposer
+                  // State is seeded on mount, so a different draft is a
+                  // different composer rather than the old one's fields.
+                  key={editingDraft?.id ?? 'new'}
+                  draft={editingDraft ?? undefined}
                   mode={composerMode}
                   replyTo={selectedEmail ? {
                     from: selectedEmail.from,
@@ -1111,6 +1181,7 @@ export default function Home() {
                     setShowComposer(false);
                     setComposerMode('compose');
                     setComposerDraftText("");
+                    setEditingDraft(null);
                   }}
                   onDiscardDraft={handleDiscardDraft}
                 />

@@ -9,7 +9,7 @@ import { Paperclip, Star, Circle, ChevronRight, ChevronDown, Loader2, MessageSqu
 import { useSettingsStore } from "@/stores/settings-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useEmailStore } from "@/stores/email-store";
-import { getThreadColorTag } from "@/lib/thread-utils";
+import { getThreadColorTag, isDraft } from "@/lib/thread-utils";
 import { ThreadEmailItem } from "./thread-email-item";
 import { useTranslations } from "next-intl";
 
@@ -60,11 +60,14 @@ interface SingleEmailItemProps {
   onCheckboxClick: (e: React.MouseEvent) => void;
   folderBadgeName: string | null;
   accountChipName: string | null;
+  /** The conversation this row heads has a reply begun and not sent. */
+  hasDraft?: boolean;
 }
 
 const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
-  function SingleEmailItem({ email, selected, onClick, onContextMenu, showPreview, colorTag, isChecked, onCheckboxClick, folderBadgeName, accountChipName }, ref) {
+  function SingleEmailItem({ email, selected, onClick, onContextMenu, showPreview, colorTag, isChecked, onCheckboxClick, folderBadgeName, accountChipName, hasDraft = false }, ref) {
     const t = useTranslations('threads');
+    const tList = useTranslations('email_list');
     const isUnread = !email.keywords?.$seen;
     const isStarred = email.keywords?.$flagged;
     const isAnswered = email.keywords?.["$answered"];
@@ -137,7 +140,16 @@ const SingleEmailItem = React.forwardRef<HTMLDivElement, SingleEmailItemProps>(
                     ? "font-bold text-foreground"
                     : "font-medium text-muted-foreground"
                 )}>
-                  {sender?.name || sender?.email || "Unknown"}
+                  {isDraft(email) ? (
+                    // In the Drafts folder the row is the draft: named as
+                    // one, not as its author.
+                    <span className="text-red-600 dark:text-red-400">{tList('draft')}</span>
+                  ) : (
+                    sender?.name || sender?.email || "Unknown"
+                  )}
+                  {hasDraft && !isDraft(email) && (
+                    <>, <span className="text-red-600 dark:text-red-400">{tList('draft')}</span></>
+                  )}
                 </span>
                 <div className="flex items-center gap-1.5">
                   {isAnswered && (
@@ -208,10 +220,11 @@ export const ThreadListItem = React.forwardRef<HTMLDivElement, ThreadListItemPro
     onCheckboxClick,
   }, ref) {
     const t = useTranslations('threads');
+    const tList = useTranslations('email_list');
     const showPreview = useSettingsStore((state) => state.showPreview);
     const isMobile = useUIStore((state) => state.isMobile);
     const { currentQuery, mailboxes } = useEmailStore();
-    const { latestEmail, participantNames, hasUnread, hasStarred, hasAnswered, hasForwarded, hasAttachment, emailCount } = thread;
+    const { latestEmail, participantNames, hasUnread, hasStarred, hasAnswered, hasForwarded, hasAttachment, emailCount, hasDraft } = thread;
     // Only surface the folder badge when browsing across all folders, where a
     // row's mailbox isn't implied by the current view.
     const folderBadgeName: string | null =
@@ -244,6 +257,7 @@ export const ThreadListItem = React.forwardRef<HTMLDivElement, ThreadListItemPro
           onCheckboxClick={onCheckboxClick}
           folderBadgeName={folderBadgeName}
           accountChipName={accountChipName}
+          hasDraft={hasDraft}
         />
       );
     }
@@ -363,6 +377,11 @@ export const ThreadListItem = React.forwardRef<HTMLDivElement, ThreadListItemPro
                       : "font-medium text-muted-foreground"
                   )}>
                     {participantNames.join(", ")}
+                    {hasDraft && (
+                      // A reply begun here and not sent, named where Gmail
+                      // names it: among the people, in red.
+                      <>, <span className="text-red-600 dark:text-red-400">{tList('draft')}</span></>
+                    )}
                   </span>
                   <span
                     className={cn(

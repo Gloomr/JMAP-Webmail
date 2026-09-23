@@ -191,6 +191,7 @@ describe('sortThreadGroups', () => {
         hasForwarded: false,
         hasAttachment: false,
         emailCount: 1,
+        hasDraft: false,
       },
       {
         threadId: 'new',
@@ -203,6 +204,7 @@ describe('sortThreadGroups', () => {
         hasForwarded: false,
         hasAttachment: false,
         emailCount: 1,
+        hasDraft: false,
       },
     ];
     const sorted = sortThreadGroups(groups);
@@ -255,6 +257,42 @@ describe('getThreadParticipants', () => {
   });
 });
 
+describe('a draft in a thread', () => {
+  const original = makeEmail({ id: 'orig', threadId: 't', receivedAt: '2024-01-15T10:00:00Z', from: [{ name: 'Anna', email: 'anna@example.org' }] });
+  const reply = makeEmail({ id: 'reply', threadId: 't', receivedAt: '2024-01-15T11:00:00Z', from: [{ name: 'Kevin', email: 'kevin@gloomr.com' }] });
+  const draft = makeEmail({
+    id: 'draft', threadId: 't', receivedAt: '2024-01-15T12:00:00Z',
+    keywords: { $draft: true, $seen: true }, hasAttachment: true,
+    from: [{ name: 'Kevin', email: 'kevin@gloomr.com' }],
+  });
+
+  it('belongs to the thread but is not one of its messages', () => {
+    const [group] = groupEmailsByThread([draft, reply, original]);
+    // Listed, so it can be taken up from the row …
+    expect(group.emails.map((e) => e.id)).toEqual(['draft', 'reply', 'orig']);
+    expect(group.hasDraft).toBe(true);
+    // … but not counted, not dating the conversation, not carrying its flags.
+    expect(group.emailCount).toBe(2);
+    expect(group.latestEmail.id).toBe('reply');
+    expect(group.hasAttachment).toBe(false);
+  });
+
+  it('describes a thread of nothing but drafts by the drafts themselves', () => {
+    // Which is what the Drafts folder lists.
+    const [group] = groupEmailsByThread([draft]);
+    expect(group.hasDraft).toBe(true);
+    expect(group.emailCount).toBe(1);
+    expect(group.latestEmail.id).toBe('draft');
+  });
+
+  it('says so when a merged thread has none', () => {
+    const [group] = groupEmailsByThread([reply, original]);
+    expect(group.hasDraft).toBe(false);
+    expect(mergeThreadEmails(group, [draft]).hasDraft).toBe(true);
+    expect(mergeThreadEmails(group, [draft]).emailCount).toBe(2);
+  });
+});
+
 describe('thread flags for handled messages', () => {
   it('marks a thread answered when any message in it was replied to', () => {
     const [group] = groupEmailsByThread([
@@ -295,6 +333,7 @@ describe('mergeThreadEmails', () => {
       hasForwarded: false,
       hasAttachment: false,
       emailCount: 2,
+      hasDraft: false,
     };
     const fetched = [
       makeEmail({ id: 'e2', receivedAt: '2024-01-09T00:00:00Z' }),
@@ -317,6 +356,7 @@ describe('mergeThreadEmails', () => {
       hasForwarded: false,
       hasAttachment: false,
       emailCount: 1,
+      hasDraft: false,
     };
     const fetched = [
       makeEmail({

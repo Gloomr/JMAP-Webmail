@@ -611,12 +611,9 @@ export class JMAPClient {
     const browsed = scope.kind === "folder"
       ? known.find((m) => m.id === scope.mailboxId) ?? { id: scope.mailboxId }
       : null;
-    // A draft is never carried along, wherever the search reaches:
-    // `includeTrashJunk` says to search the deleted mail, not to date a
-    // conversation by an unsent reply sitting in Drafts.
     const hidden = scope.kind === "all" && scope.includeTrashJunk
-      ? { draftsId: byRole("drafts") }
-      : { trashId: byRole("trash"), junkId: byRole("junk"), draftsId: byRole("drafts") };
+      ? {}
+      : { trashId: byRole("trash"), junkId: byRole("junk") };
     return siblingsOf(rows, members[1]?.list || [], siblingPolicyFor(browsed, hidden));
   }
 
@@ -1304,13 +1301,7 @@ export class JMAPClient {
           if (email.headers) await this.parseEmailHeaders(email);
         }
 
-        // An unsent draft is not part of the conversation: shown in it,
-        // it can be neither opened nor deleted there, and it dates the
-        // thread by when somebody last typed. The composer is where a
-        // draft is edited; the Drafts listing is where it is found.
-        const sent = emails.filter((email) => !email.keywords?.$draft);
-
-        return sent.sort((a: Email, b: Email) =>
+        return emails.sort((a: Email, b: Email) =>
           new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
         );
       }
@@ -1957,6 +1948,19 @@ export class JMAPClient {
     }
     const blob = await response.blob();
     return URL.createObjectURL(blob);
+  }
+
+  /**
+   * A blob's bytes as text, for a part this client wrote itself and
+   * reads back — the letter document attached to a draft.
+   */
+  async fetchBlobText(blobId: string, name?: string, type?: string): Promise<string> {
+    const url = this.getBlobDownloadUrl(blobId, name, type);
+    const response = await this.authenticatedFetch(url, {}, { retry: false });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch blob: ${response.status}`);
+    }
+    return response.text();
   }
 
   getCapabilities(): Record<string, unknown> {

@@ -143,7 +143,8 @@ export interface ThreadGroup {
   hasAnswered: boolean;      // Any email in thread was replied to
   hasForwarded: boolean;     // Any email in thread was forwarded on
   hasAttachment: boolean;    // Any email has attachment
-  emailCount: number;        // Total emails in thread
+  emailCount: number;        // Messages in the thread, drafts not counted
+  hasDraft: boolean;         // A reply begun here and not sent yet
 }
 
 export interface Identity {

@@ -34,6 +34,28 @@ import {
   type Quoted,
 } from "@/lib/letter-document";
 
+/**
+ * A saved draft, as the composer takes it up again.
+ *
+ * `document` is the letter the composer attached when it saved — read
+ * back so headings and lists come back as they were. Null when the
+ * attachment is missing or unreadable, in which case the prose stands
+ * in for it.
+ */
+export interface DraftSeed {
+  id: string;
+  accountId?: string;
+  from?: { email?: string; name?: string }[];
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  /** The text part: the sender's words, with the quoted thread under them. */
+  body: string;
+  document: LetterDocument | null;
+  replyContext?: ReplyContext;
+}
+
 interface EmailComposerProps {
   onSend?: (data: {
     to: string[];
@@ -52,6 +74,12 @@ interface EmailComposerProps {
   onDiscardDraft?: (draftId: string) => void;
   className?: string;
   initialDraftText?: string;
+  /**
+   * A saved draft to go on writing. Its fields seed the composer in
+   * place of `replyTo` and `initialDraftText`, and the first save
+   * replaces it rather than making a second one.
+   */
+  draft?: DraftSeed;
   mode?: 'compose' | 'reply' | 'replyAll' | 'forward';
   replyTo?: {
     from?: { email?: string; name?: string }[];
@@ -73,6 +101,7 @@ export function EmailComposer({
   onDiscardDraft,
   className,
   initialDraftText,
+  draft,
   mode = 'compose',
   replyTo
 }: EmailComposerProps) {
@@ -172,15 +201,22 @@ export function EmailComposer({
     return quoted ? `${prefix}\n\n${quotedAsText(quoted)}`.replace(/^\n+/, '') : prefix;
   };
 
-  const [to, setTo] = useState(getInitialTo());
-  const [cc, setCc] = useState(getInitialCc());
-  const [bcc, setBcc] = useState("");
-  const [subject, setSubject] = useState(getInitialSubject());
-  const [body, setBody] = useState(getInitialBody());
+  // A draft taken up again seeds everything from what was saved; a
+  // fresh message from the reply context and the typed text.
+  const [to, setTo] = useState(draft ? draft.to.join(", ") : getInitialTo());
+  const [cc, setCc] = useState(draft ? draft.cc.join(", ") : getInitialCc());
+  const [bcc, setBcc] = useState(draft ? draft.bcc.join(", ") : "");
+  const [subject, setSubject] = useState(draft ? draft.subject : getInitialSubject());
+  const [body, setBody] = useState(draft ? draft.body : getInitialBody());
   // The letter as a document. `body` above is its prose — kept because
   // the draft carries a readable text part beside the document, and
   // because everything downstream already counts characters in it.
   const [letter, setLetter] = useState<LetterDocument>(() => {
+    if (draft) {
+      // Without the saved document the prose stands in: the thread it
+      // quotes then sits in the card, which is still every word saved.
+      return draft.document ?? { v: 1, body: textToDocument(draft.body), signAs: 'house' };
+    }
     const quoted = getInitialQuoted();
     return {
       v: 1,
@@ -189,9 +225,11 @@ export function EmailComposer({
       ...(quoted ? { quoted } : {}),
     };
   });
-  const [showCc, setShowCc] = useState(!!getInitialCc());
-  const [showBcc, setShowBcc] = useState(false);
-  const [draftId, setDraftId] = useState<string | null>(null);
+  const [showCc, setShowCc] = useState(draft ? draft.cc.length > 0 : !!getInitialCc());
+  const [showBcc, setShowBcc] = useState(draft ? draft.bcc.length > 0 : false);
+  // The saved draft is what the first save replaces, so taking one up
+  // again does not leave a second copy in Drafts.
+  const [draftId, setDraftId] = useState<string | null>(draft?.id ?? null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDataRef = useRef<string>("");
@@ -219,14 +257,15 @@ export function EmailComposer({
   // conversation, and claiming otherwise files it inside the thread it
   // was forwarded out of, in every client that reads the header.
   const replyContext: ReplyContext | undefined =
-    (mode === 'reply' || mode === 'replyAll') && replyTo?.messageId?.length
+    draft?.replyContext ??
+    ((mode === 'reply' || mode === 'replyAll') && replyTo?.messageId?.length
       ? {
           messageId: replyTo.messageId,
           references: replyTo.references,
           emailId: replyTo.emailId,
           accountId: replyTo.accountId,
         }
-      : undefined;
+      : undefined);
 
   const identityLookup = { identities, identitiesByAccount, primaryAccountId, primaryIdentity };
   const resolveIdentityKey = (key: string | null) => resolveIdentity(key, identityLookup);
@@ -713,29 +752,43 @@ export function EmailComposer({
     }
   };
 
+  /**
+   * Closing keeps what was written. A message half-written is a draft,
+   * and a draft is found again in Drafts and in the thread it answers;
+   * the one way to lose it is to say so, below.
+   */
   const handleClose = async () => {
-    if (draftId && (to || subject || body)) {
-      const confirmed = await confirm({
-        title: t('discard_draft_title'),
-        message: t('discard_draft_confirm'),
-        confirmText: t('discard'),
-        variant: "destructive",
-      });
-
-      if (confirmed) {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-        }
-
-        if (onDiscardDraft) {
-          onDiscardDraft(draftId);
-        }
-
-        onClose?.();
-      }
-    } else {
-      onClose?.();
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
     }
+    if (to || subject || body) {
+      const saved = await saveDraft();
+      if (saved) toast.success(t('draft_saved'));
+    }
+    onClose?.();
+  };
+
+  /** Throws the draft away, after asking. */
+  const handleDiscard = async () => {
+    if (!draftId && !(to || subject || body)) {
+      onClose?.();
+      return;
+    }
+    const confirmed = await confirm({
+      title: t('discard_draft_title'),
+      message: t('discard_draft_confirm'),
+      confirmText: t('discard'),
+      variant: "destructive",
+    });
+    if (!confirmed) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    if (draftId) onDiscardDraft?.(draftId);
+    onClose?.();
   };
 
   return (
@@ -1045,7 +1098,7 @@ export function EmailComposer({
           {/* Left side - Discard button */}
           <button
             type="button"
-            onClick={handleClose}
+            onClick={handleDiscard}
             className="text-sm text-muted-foreground hover:text-red-500 transition-colors"
           >
             {t('discard')}

@@ -38,10 +38,7 @@ describe('getThreadEmails', () => {
     expect(args.fetchTextBodyValues).toBe(true);
   });
 
-  it('leaves an unsent draft out of the conversation', async () => {
-    // A draft shown in the thread can be neither opened nor deleted
-    // there, and as the newest thing in it, it dates the conversation by
-    // when somebody last typed.
+  it('keeps a draft in the conversation, where it can be taken up again', async () => {
     const client = createTestClient();
     const spy = mockFetch({
       methodResponses: [
@@ -58,7 +55,7 @@ describe('getThreadEmails', () => {
     });
 
     const emails = await client.getThreadEmails('t1');
-    expect(emails.map((e) => e.id)).toEqual(['sent']);
+    expect(emails.map((e) => e.id)).toEqual(['draft', 'sent']);
   });
 
   it('turns the raw header list into the parsed fields the viewer reads', async () => {

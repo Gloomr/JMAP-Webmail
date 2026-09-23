@@ -23,19 +23,23 @@ export type SiblingPolicy =
 /**
  * The policy for a listing: what is browsed decides it. `browsed` is the
  * mailbox of a folder scope, or null for a search across folders;
- * `hidden` names the account's trash, junk and drafts, as far as they
- * are known.
+ * `hidden` names the account's trash and junk, as far as they are known.
+ *
+ * A draft is not hidden: it travels with its conversation, marked as a
+ * draft, so a reply begun and not sent can be found in the thread it
+ * answers and taken up again there. What it does not do is count as a
+ * message — that is `groupEmailsByThread`'s business.
  */
 export function siblingPolicyFor(
   browsed: { id: string; role?: string } | null,
-  hidden: { trashId?: string; junkId?: string; draftsId?: string },
+  hidden: { trashId?: string; junkId?: string },
 ): SiblingPolicy {
   if (browsed?.role && ROLES_LISTED_ALONE.has(browsed.role)) {
     return { kind: "sameMailbox", mailboxId: browsed.id };
   }
   return {
     kind: "notOnlyIn",
-    mailboxIds: [hidden.trashId, hidden.junkId, hidden.draftsId].filter((id): id is string => Boolean(id)),
+    mailboxIds: [hidden.trashId, hidden.junkId].filter((id): id is string => Boolean(id)),
   };
 }
 
@@ -60,14 +64,6 @@ export function siblingsOf(rows: Email[], threadEmails: Email[], policy: Sibling
 function allowed(email: Email, policy: SiblingPolicy): boolean {
   const mailboxIds = Object.keys(email.mailboxIds ?? {}).filter((id) => email.mailboxIds[id]);
   if (policy.kind === "sameMailbox") return mailboxIds.includes(policy.mailboxId);
-  // An unsent draft is not part of the conversation. Carried into the
-  // row it is the newest thing in it, so the conversation is dated by
-  // when somebody last typed; shown in the thread it cannot be opened,
-  // edited or deleted, because that is the composer's business; and
-  // answered, it is a message of one's own with nobody to answer to.
-  // The keyword is what a server marks it with; the mailbox is the same
-  // answer for a server that does not.
-  if (email.keywords?.$draft) return false;
   if (policy.mailboxIds.length === 0 || mailboxIds.length === 0) return true;
   return mailboxIds.some((id) => !policy.mailboxIds.includes(id));
 }

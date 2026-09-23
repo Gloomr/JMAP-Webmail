@@ -80,6 +80,7 @@ const threadOf = (e: Email): ThreadGroup => ({
   hasForwarded: false,
   hasAttachment: false,
   emailCount: 1,
+  hasDraft: false,
 });
 
 const renderRow = (thread: ThreadGroup) =>

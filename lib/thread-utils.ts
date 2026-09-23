@@ -90,33 +90,48 @@ export function groupEmailsByThread(emails: Email[], participants: ParticipantOp
       (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
     );
 
-    const latestEmail = sortedEmails[0];
-
-    // Collect unique participant names from all emails in thread
-    const participantNames = getThreadParticipants(sortedEmails, 4, participants);
-
-    // Check for unread, starred, and attachments
-    const hasUnread = sortedEmails.some(e => !e.keywords?.$seen);
-    const hasStarred = sortedEmails.some(e => e.keywords?.$flagged);
-    const hasAnswered = sortedEmails.some(e => e.keywords?.["$answered"]);
-    const hasForwarded = sortedEmails.some(e => e.keywords?.["$forwarded"]);
-    const hasAttachment = sortedEmails.some(e => e.hasAttachment);
-
-    threadGroups.push({
-      threadId,
-      emails: sortedEmails,
-      latestEmail,
-      participantNames,
-      hasUnread,
-      hasStarred,
-      hasAnswered,
-      hasForwarded,
-      hasAttachment,
-      emailCount: sortedEmails.length,
-    });
+    threadGroups.push(describeThread(threadId, sortedEmails, participants));
   }
 
   return threadGroups;
+}
+
+/** Whether a message is a reply begun here and not sent. */
+export function isDraft(email: Email): boolean {
+  return Boolean(email.keywords?.$draft);
+}
+
+/**
+ * What a thread row says about its messages.
+ *
+ * A draft belongs to the thread — it is listed in `emails`, so it can
+ * be taken up from the row — but it is not a message of it: it is not
+ * counted, it does not date the conversation, and its author is not a
+ * participant. A row that said "3" for two messages and a half-written
+ * reply, dated by when somebody last typed, would be lying about the
+ * conversation. A thread of nothing but drafts, which is what the
+ * Drafts folder lists, is described by the drafts themselves.
+ */
+function describeThread(
+  threadId: string,
+  sortedEmails: Email[],
+  participants: ParticipantOptions,
+): ThreadGroup {
+  const sent = sortedEmails.filter((e) => !isDraft(e));
+  const described = sent.length > 0 ? sent : sortedEmails;
+  return {
+    threadId,
+    emails: sortedEmails,
+    latestEmail: described[0],
+    participantNames: getThreadParticipants(described, 4, participants),
+    hasUnread: described.some((e) => !e.keywords?.$seen),
+    hasStarred: described.some((e) => e.keywords?.$flagged),
+    hasAnswered: described.some((e) => e.keywords?.["$answered"]),
+    hasForwarded: described.some((e) => e.keywords?.["$forwarded"]),
+    hasAttachment: described.some((e) => e.hasAttachment),
+    emailCount: described.length,
+    hasDraft: sent.length < sortedEmails.length,
+  };
 }
 
 /**
@@ -247,26 +262,7 @@ export function mergeThreadEmails(
     (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
   );
 
-  const latestEmail = mergedEmails[0];
-  const participantNames = getThreadParticipants(mergedEmails, 4, participants);
-  const hasUnread = mergedEmails.some(e => !e.keywords?.$seen);
-  const hasStarred = mergedEmails.some(e => e.keywords?.$flagged);
-  const hasAnswered = mergedEmails.some(e => e.keywords?.["$answered"]);
-  const hasForwarded = mergedEmails.some(e => e.keywords?.["$forwarded"]);
-  const hasAttachment = mergedEmails.some(e => e.hasAttachment);
-
-  return {
-    threadId: existingGroup.threadId,
-    emails: mergedEmails,
-    latestEmail,
-    participantNames,
-    hasUnread,
-    hasStarred,
-    hasAnswered,
-    hasForwarded,
-    hasAttachment,
-    emailCount: mergedEmails.length,
-  };
+  return describeThread(existingGroup.threadId, mergedEmails, participants);
 }
 
 /**

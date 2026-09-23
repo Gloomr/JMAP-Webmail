@@ -27,6 +27,7 @@ const thread: ThreadGroup = {
   hasForwarded: false,
   hasAttachment: false,
   emailCount: 1,
+  hasDraft: false,
 };
 
 const mailboxes = [
