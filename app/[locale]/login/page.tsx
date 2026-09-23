@@ -17,7 +17,7 @@ export default function LoginPage() {
   const router = useRouter();
   const t = useTranslations("login");
   const params = useParams();
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+  const { login, isLoading, error, clearError, isAuthenticated, checkAuth } = useAuthStore();
   const { appName, jmapServerUrl: serverUrl, oauthEnabled, oauthClientId, oauthIssuerUrl, oauthScopes, oauthOnly, rememberMeEnabled, isLoading: configLoading, error: configError } = useConfig();
 
   const [formData, setFormData] = useState({
@@ -28,6 +28,8 @@ export default function LoginPage() {
   const [showTotpField, setShowTotpField] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [serverUnreachable, setServerUnreachable] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [shakeError, setShakeError] = useState(false);
 
@@ -59,8 +61,28 @@ export default function LoginPage() {
         setSessionExpired(true);
         sessionStorage.removeItem('session_expired');
       }
+      if (sessionStorage.getItem('server_unreachable') === 'true') {
+        setServerUnreachable(true);
+        sessionStorage.removeItem('server_unreachable');
+      }
     } catch { /* sessionStorage unavailable */ }
   }, []);
+
+  // The remembered session is still there; only the server was away.
+  // A success is answered by the redirect below, a repeat sets the flag
+  // again and the banner stays.
+  const retryRestore = async () => {
+    setRetrying(true);
+    try {
+      await checkAuth();
+    } finally {
+      setRetrying(false);
+    }
+    try {
+      setServerUnreachable(sessionStorage.getItem('server_unreachable') === 'true');
+      sessionStorage.removeItem('server_unreachable');
+    } catch { /* sessionStorage unavailable */ }
+  };
 
   useEffect(() => {
     if (error && error !== prevError.current) {
@@ -340,6 +362,28 @@ export default function LoginPage() {
             >
               <X className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             </button>
+          </div>
+        )}
+
+        {/* Server unreachable — the sign-in is kept, not expired */}
+        {serverUnreachable && (
+          <div
+            className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-3"
+            role="status"
+            aria-live="polite"
+            data-testid="server-unreachable"
+          >
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800 flex-1">{t("server_unreachable")}</p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={retrying}
+              onClick={retryRestore}
+              className="h-8 px-3 text-xs flex-shrink-0"
+            >
+              {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : t("retry")}
+            </Button>
           </div>
         )}
 

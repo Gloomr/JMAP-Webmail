@@ -31,6 +31,7 @@
     "show_password": "Passwort anzeigen",
     "hide_password": "Passwort verbergen",
     "session_expired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    "server_unreachable": "Der Mailserver ist gerade nicht erreichbar. Ihre Anmeldung bleibt gespeichert; versuchen Sie es gleich noch einmal.",
     "dismiss": "Schließen",
     "or": "oder",
     "sign_in_sso": "Mit SSO anmelden",

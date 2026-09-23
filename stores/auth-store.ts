@@ -8,6 +8,7 @@ import { useVacationStore } from './vacation-store';
 import { useCalendarStore } from './calendar-store';
 import { useFilterStore } from './filter-store';
 import { debug } from '@/lib/debug';
+import { isServerUnreachable } from '@/lib/jmap/errors';
 import type { Identity } from '@/lib/jmap/types';
 
 interface AuthState {
@@ -23,6 +24,13 @@ interface AuthState {
   rememberMe: boolean;
   accessToken: string | null;
   tokenExpiresAt: number | null;
+  /**
+   * A remembered session that could not be restored because the server
+   * did not answer. Nothing is known about the session itself, so it is
+   * kept and tried again on the next load or on request — unlike an
+   * expired one, which is cleared.
+   */
+  restorePending: boolean;
 
   login: (serverUrl: string, username: string, password: string, totp?: string, rememberMe?: boolean) => Promise<boolean>;
   loginWithOAuth: (serverUrl: string, code: string, codeVerifier: string, redirectUri: string) => Promise<boolean>;
@@ -61,6 +69,11 @@ function loadIdentities(rawIdentities: Identity[], username: string): { identiti
 
 function markSessionExpired(): void {
   try { sessionStorage.setItem('session_expired', 'true'); } catch { /* noop */ }
+}
+
+/** Tells the login page that the server, not the session, is the problem. */
+function markServerUnreachable(): void {
+  try { sessionStorage.setItem('server_unreachable', 'true'); } catch { /* noop */ }
 }
 
 function initializeFeatureStores(client: JMAPClient): void {
@@ -132,6 +145,7 @@ export const useAuthStore = create<AuthState>()(
       rememberMe: false,
       accessToken: null,
       tokenExpiresAt: null,
+      restorePending: false,
 
       login: async (serverUrl, username, password, totp, rememberMe) => {
         const effectivePassword = totp ? `${password}$${totp}` : password;
@@ -346,7 +360,7 @@ export const useAuthStore = create<AuthState>()(
       checkAuth: async () => {
         const state = get();
 
-        if (state.isAuthenticated && !state.client) {
+        if ((state.isAuthenticated || state.restorePending) && !state.client) {
           if (state.authMode === 'oauth' && state.serverUrl) {
             set({ isLoading: true });
             try {
@@ -401,11 +415,21 @@ export const useAuthStore = create<AuthState>()(
                   identities,
                   primaryIdentity,
                   authMode: 'basic',
+                  restorePending: false,
                 });
                 return;
               }
             } catch (error) {
               debug.error('Basic session restore failed:', error);
+              // A server that did not answer has said nothing about the
+              // session. Throwing the sign-in away here would make an
+              // outage cost every remembered login; keep it, say what
+              // happened, and try again on the next load or on request.
+              if (isServerUnreachable(error)) {
+                markServerUnreachable();
+                set({ isAuthenticated: false, isLoading: false, client: null, restorePending: true });
+                return;
+              }
             }
           }
 
@@ -421,6 +445,7 @@ export const useAuthStore = create<AuthState>()(
             rememberMe: false,
             accessToken: null,
             tokenExpiresAt: null,
+            restorePending: false,
           });
         }
 
@@ -439,6 +464,7 @@ export const useAuthStore = create<AuthState>()(
           ? state.isAuthenticated
           : undefined,
         rememberMe: state.rememberMe,
+        restorePending: state.restorePending,
       }),
     }
   )

@@ -31,6 +31,7 @@
     "totp_label": "Authentication code",
     "totp_placeholder": "000000",
     "session_expired": "Your session has expired. Please sign in again.",
+    "server_unreachable": "The mail server is not reachable right now. Your sign-in is kept; try again in a moment.",
     "dismiss": "Dismiss",
     "or": "or",
     "sign_in_sso": "Sign in with SSO",

@@ -36,7 +36,11 @@ latter, under the signed-in user's credentials.
   send, from the prose. A send that fails because the service behind the
   entrance is down says so (`isServerUnreachable` in
   `lib/jmap/errors.ts`): nothing went, the message stays open, try again
-  in a moment — rather than a generic failure.
+  in a moment — rather than a generic failure. The same distinction holds
+  a remembered sign-in through an outage: a session that cannot be
+  restored because the server did not answer is kept as
+  `restorePending` (`stores/auth-store.ts`) and the login page offers to
+  try again, where upstream cleared it and reported it expired.
 - **The message travels as a document.** `lib/letter-document.ts` reads
   the editor into a tree of headings, paragraphs, lists, quotes and
   links; the composer attaches it as
