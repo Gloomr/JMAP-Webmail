@@ -453,6 +453,8 @@
     "upload_cancel": "Hochladen abbrechen",
     "upload_failed": "Hochladen von {filename} fehlgeschlagen",
     "send_failed": "E-Mail konnte nicht gesendet werden",
+    "send_unreachable_title": "Mailserver nicht erreichbar",
+    "send_unreachable_message": "Es wurde nichts gesendet. Ihre Nachricht bleibt hier, versuchen Sie es gleich noch einmal.",
     "send_as_failed_title": "Senden über die Gruppenadresse fehlgeschlagen",
     "send_as_failed_message": "Der Server hat das Senden über das Gruppenkonto abgelehnt: {error}. Sie können die Nachricht stattdessen von Ihrer eigenen Adresse senden.",
     "send_as_fallback_confirm": "Von meiner Adresse senden",

@@ -33,7 +33,10 @@ latter, under the signed-in user's credentials.
   the frame in the light or the dark palette: the mail carries both, and
   the reader's device chooses. A gateway that cannot be reached costs
   the picture, not the ability to write — the letterhead is applied on
-  send, from the prose.
+  send, from the prose. A send that fails because the service behind the
+  entrance is down says so (`isServerUnreachable` in
+  `lib/jmap/errors.ts`): nothing went, the message stays open, try again
+  in a moment — rather than a generic failure.
 - **The message travels as a document.** `lib/letter-document.ts` reads
   the editor into a tree of headings, paragraphs, lists, quotes and
   links; the composer attaches it as

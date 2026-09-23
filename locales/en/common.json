@@ -454,6 +454,8 @@
     "upload_cancel": "Cancel upload",
     "upload_failed": "Failed to upload {filename}",
     "send_failed": "Failed to send email",
+    "send_unreachable_title": "Mail server not reachable",
+    "send_unreachable_message": "Nothing was sent. Your message stays here; try again in a moment.",
     "send_as_failed_title": "Could not send from group address",
     "send_as_failed_message": "The server rejected sending from the group account: {error}. You can resend the message from your own address instead.",
     "send_as_fallback_confirm": "Resend from my address"

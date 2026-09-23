@@ -24,6 +24,7 @@ import { TemplatePicker } from "@/components/templates/template-picker";
 import { TemplateForm } from "@/components/templates/template-form";
 import type { EmailTemplate } from "@/lib/template-types";
 import type { Identity } from "@/lib/jmap/types";
+import { isServerUnreachable } from "@/lib/jmap/errors";
 import { LetterheadEditor } from "@/components/email/letterhead-editor";
 import {
   documentToText,
@@ -748,7 +749,14 @@ export function EmailComposer({
         }
       }
 
-      toast.error(t('send_failed'));
+      // A server that did not answer is a different message from one that
+      // refused: nothing went, the letter is still here, and trying again
+      // in a moment is the whole remedy.
+      if (isServerUnreachable(err)) {
+        toast.error(t('send_unreachable_title'), t('send_unreachable_message'));
+      } else {
+        toast.error(t('send_failed'));
+      }
     }
   };
 
