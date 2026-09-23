@@ -58,8 +58,19 @@ latter, under the signed-in user's credentials.
   messages, and a message that sits only in trash or junk stays out of
   an inbox conversation. The rows themselves are untouched, so paging
   anchors, the new-mail chime and the unified merge are as they were.
+- **A row names who the conversation is with.** Senders oldest first, so
+  the person who opened it comes first, and every address the reader
+  sends from collapses into one "me" — a thread they just answered is
+  not headed by their own signature. Replying to a message of their own
+  writes to the people it was sent to, not back to themselves.
 - **The application is light only.** `stores/theme-store.ts` applies the
-  light theme and the appearance settings offer no choice.
+  light theme, the appearance settings offer no choice, and the frame a
+  table-shaped mail renders in pins `color-scheme: light` so a dark
+  machine cannot paint a message dark inside a light page.
+- **A reply shows the words written.** The history it quotes — cite
+  blockquotes, Gmail's and Outlook's markers, the trailing `>` lines of
+  a plain-text reply — folds behind a pill
+  (`collapseQuotedHistory` in `lib/email-sanitization.ts`).
 - **Links open away.** `lib/email-sanitization.ts` gives every http(s)
   link in a viewed mail `target="_blank" rel="noopener noreferrer"`.
 - `.github/workflows/gloomr-ghcr.yml` publishes the image under the
