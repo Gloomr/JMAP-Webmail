@@ -6,6 +6,7 @@ import type { UnifiedTarget, AccountPage } from './unified-query';
 import { siblingsOf, siblingPolicyFor } from './thread-siblings';
 import { creationId } from '../creation-id';
 import { buildReplyHeaders, type ReplyContext } from '../reply-context';
+import { announceEdgeChallenge, isEdgeChallenge } from './edge-challenge';
 
 // JMAP protocol types - these are intentionally flexible due to server variations
 interface JMAPSession {
@@ -257,6 +258,10 @@ export class JMAPClient {
       });
     } else {
       response = await doFetch();
+    }
+
+    if (isEdgeChallenge(response)) {
+      announceEdgeChallenge();
     }
 
     if (response.status === 401 && this.authMode === 'bearer' && this.onTokenRefresh) {

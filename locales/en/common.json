@@ -44,7 +44,11 @@
       "access_denied": "Access was denied. Please contact your administrator.",
       "back_to_login": "Back to login",
       "requires_https": "Single Sign-On requires a secure connection. Please access this webmail over HTTPS (or localhost during development)."
-    }
+    },
+    "edge_challenge_title": "Checking your connection",
+    "edge_challenge_message": "Your security check has expired. The page reloads to renew it; nothing is lost.",
+    "edge_challenge_stuck": "The security check keeps coming back. Reload the page; if it persists, the network you are on may be blocked.",
+    "edge_challenge_reload": "Reload"
   },
   "sidebar": {
     "close": "Close",

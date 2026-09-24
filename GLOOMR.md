@@ -107,6 +107,15 @@ latter, under the signed-in user's credentials.
   `locales/` holds exactly those two bundles; `lib/__tests__/
   locale-parity.test.ts` holds the directory and the declaration equal
   and the two key sets identical. A locale is added by adding both.
+- **An expired edge challenge reloads the page.** GLOOMR's webmail sits
+  behind a Cloudflare managed challenge, and a JMAP call made after the
+  browser's pass expired comes back as a challenge page marked
+  `cf-mitigated: challenge`, which a fetch cannot solve.
+  `lib/jmap/edge-challenge.ts` recognises it in the client's one fetch
+  path and announces it; `components/providers/edge-challenge-provider.tsx`
+  shows a notice and reloads, at most once a minute, and otherwise
+  leaves a notice with a button. Without such a deployment the header
+  never appears and nothing runs.
 - `.github/workflows/gloomr-ghcr.yml` publishes the image under the
   Gloomr organisation.
 

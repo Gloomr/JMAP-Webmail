@@ -44,7 +44,11 @@
       "access_denied": "Zugriff verweigert. Bitte kontaktieren Sie Ihren Administrator.",
       "back_to_login": "Zurück zur Anmeldung",
       "requires_https": "Single Sign-On erfordert eine sichere Verbindung. Bitte greifen Sie über HTTPS auf dieses Webmail zu (oder localhost in der Entwicklung)."
-    }
+    },
+    "edge_challenge_title": "Verbindung wird geprüft",
+    "edge_challenge_message": "Die Sicherheitsprüfung ist abgelaufen. Die Seite lädt neu, um sie zu erneuern; es geht nichts verloren.",
+    "edge_challenge_stuck": "Die Sicherheitsprüfung kommt immer wieder. Laden Sie die Seite neu; bleibt es so, ist das Netz, in dem Sie sind, möglicherweise gesperrt.",
+    "edge_challenge_reload": "Neu laden"
   },
   "sidebar": {
     "close": "Schließen",
